@@ -1,0 +1,125 @@
+@extends('layouts.backend')
+
+@section('content')
+<!-- Page Content -->
+<div class="content">
+    <div class="block block-rounded">
+        <div class="block-header block-header-default">
+            <h3 class="block-title">การนัดหมายทั้งหมด</h3>
+            <div class="block-options">
+                <a href="{{ route('appointments.create') }}" class="btn btn-alt-primary">
+                    <i class="fa fa-plus"></i> นัดหมายใหม่
+                </a>
+            </div>
+        </div>
+        <div class="block-content">
+            @if(session('success'))
+                <div class="alert alert-success alert-dismissible" role="alert">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    <p class="mb-0">{{ session('success') }}</p>
+                </div>
+            @endif
+
+            @if(session('error'))
+                <div class="alert alert-danger alert-dismissible" role="alert">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    <p class="mb-0">{{ session('error') }}</p>
+                </div>
+            @endif
+
+            @if($appointments->isEmpty())
+                <div class="alert alert-info">
+                    ไม่พบการนัดหมาย <a href="{{ route('appointments.create') }}" class="alert-link">นัดหมายใหม่</a>
+                </div>
+            @else
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped table-vcenter">
+                        <thead>
+                            <tr>
+                                <th>คลินิก</th>
+                                <th>แพทย์</th>
+                                <th>วันที่</th>
+                                <th>เวลา</th>
+                                @if(Auth::user()->isAdmin())
+                                    <th>ผู้นัด</th>
+                                @endif
+                                <th>สถานะ</th>
+                                <th class="text-center" style="width: 150px;">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($appointments as $appointment)
+                                <tr>
+                                    <td>{{ $appointment->clinic->name }}</td>
+                                    <td>{{ $appointment->doctor->name }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($appointment->timeSlot->date)->format('d/m/Y') }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($appointment->timeSlot->start_time)->format('H:i') }} - {{ \Carbon\Carbon::parse($appointment->timeSlot->end_time)->format('H:i') }}</td>
+                                    @if(Auth::user()->isAdmin())
+                                        <td>{{ $appointment->user->name }}</td>
+                                    @endif
+                                    <td>
+                                        @if($appointment->status == 'pending')
+                                            <span class="badge bg-warning">รอดำเนินการ</span>
+                                        @elseif($appointment->status == 'confirmed')
+                                            <span class="badge bg-success">ยืนยันแล้ว</span>
+                                        @elseif($appointment->status == 'cancelled')
+                                            <span class="badge bg-danger">ยกเลิกแล้ว</span>
+                                        @elseif($appointment->status == 'completed')
+                                            <span class="badge bg-info">เสร็จสิ้น</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group">
+                                            <a href="{{ route('appointments.show', $appointment) }}" class="btn btn-sm btn-alt-secondary" data-toggle="tooltip" title="ดูรายละเอียด">
+                                                <i class="fa fa-eye"></i>
+                                            </a>
+                                            @if($appointment->status == 'pending')
+                                                <a href="{{ route('appointments.edit', $appointment) }}" class="btn btn-sm btn-alt-secondary" data-toggle="tooltip" title="แก้ไข">
+                                                    <i class="fa fa-pencil-alt"></i>
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-toggle="modal" data-bs-target="#modal-cancel-{{ $appointment->id }}" data-toggle="tooltip" title="ยกเลิก">
+                                                    <i class="fa fa-times"></i>
+                                                </button>
+                                            @endif
+                                        </div>
+                                        
+                                        <!-- Cancel Modal -->
+                                        <div class="modal fade" id="modal-cancel-{{ $appointment->id }}" tabindex="-1" role="dialog" aria-labelledby="modal-cancel-{{ $appointment->id }}" aria-hidden="true">
+                                            <div class="modal-dialog" role="document">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">ยืนยันการยกเลิก</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p>คุณต้องการยกเลิกการนัดหมายนี้ใช่หรือไม่?</p>
+                                                        <p>
+                                                            <strong>คลินิก:</strong> {{ $appointment->clinic->name }}<br>
+                                                            <strong>แพทย์:</strong> {{ $appointment->doctor->name }}<br>
+                                                            <strong>วันที่:</strong> {{ \Carbon\Carbon::parse($appointment->timeSlot->date)->format('d/m/Y') }}<br>
+                                                            <strong>เวลา:</strong> {{ \Carbon\Carbon::parse($appointment->timeSlot->start_time)->format('H:i') }} - {{ \Carbon\Carbon::parse($appointment->timeSlot->end_time)->format('H:i') }}
+                                                        </p>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-alt-secondary" data-bs-dismiss="modal">ปิด</button>
+                                                        <form action="{{ route('appointments.cancel', $appointment) }}" method="POST">
+                                                            @csrf
+                                                            <button type="submit" class="btn btn-danger">ยกเลิกการนัดหมาย</button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <!-- END Cancel Modal -->
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
+    </div>
+</div>
+<!-- END Page Content -->
+@endsection
