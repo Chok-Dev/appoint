@@ -58,7 +58,8 @@ class AppointmentController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get();
         }
-      /*   $his = DB::connection('pgsql')->table('person')
+        
+        /*   $his = DB::connection('pgsql')->table('person')
             ->selectRaw('cid,pname,fname,lname,birthdate,patient_hn')
             ->where('cid', '=', '1418000003320')
             ->get(); */
@@ -208,84 +209,110 @@ class AppointmentController extends Controller
 
     public function edit(Appointment $appointment)
     {
-        // Check if the user is admin or the appointment belongs to the user
+        // ตรวจสอบสิทธิ์การเข้าถึง
         if (!Auth::user()->isAdmin() && $appointment->user_id !== Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
-        $appointment->load(['timeSlot', 'doctor', 'clinic']);
-
-        // Only allow editing for pending appointments
+        // ตรวจสอบว่าการนัดหมายยังอยู่ในสถานะ pending หรือไม่
         if ($appointment->status !== 'pending') {
             return redirect()->route('appointments.show', $appointment)
-                ->with('error', 'Only pending appointments can be edited.');
+                ->with('error', 'สามารถแก้ไขได้เฉพาะการนัดหมายที่มีสถานะรอดำเนินการเท่านั้น');
         }
 
-        $clinics = Clinic::all();
-        $doctors = $appointment->clinic->doctors;
-        $availableTimeSlots = TimeSlot::where('clinic_id', $appointment->clinic_id)
-            ->where('doctor_id', $appointment->doctor_id)
-            ->where('date', $appointment->timeSlot->date)
-            ->where('is_active', true)
-            ->whereRaw('booked_appointments < max_appointments')
-            ->orWhere('id', $appointment->time_slot_id) // Include current time slot
-            ->orderBy('start_time')
-            ->get();
+        // โหลดข้อมูลที่เกี่ยวข้อง
+        $appointment->load(['timeSlot', 'doctor', 'clinic']);
 
-        return view('appointments.edit', compact('appointment', 'clinics', 'doctors', 'availableTimeSlots'));
+        // ดึงข้อมูลสำหรับการแสดงผล
+        $clinics = Clinic::all();
+
+        return view('appointments.edit', compact('appointment', 'clinics'));
     }
 
     public function update(Request $request, Appointment $appointment)
     {
-        // Check if the user is admin or the appointment belongs to the user
+        // ตรวจสอบสิทธิ์การเข้าถึง
         if (!Auth::user()->isAdmin() && $appointment->user_id !== Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
-        // Only allow updating pending appointments
+        // ตรวจสอบว่าการนัดหมายยังอยู่ในสถานะ pending หรือไม่
         if ($appointment->status !== 'pending') {
             return redirect()->route('appointments.show', $appointment)
-                ->with('error', 'Only pending appointments can be updated.');
+                ->with('error', 'สามารถแก้ไขได้เฉพาะการนัดหมายที่มีสถานะรอดำเนินการเท่านั้น');
         }
 
         $validated = $request->validate([
             'time_slot_id' => 'required|exists:time_slots,id',
             'notes' => 'nullable|string',
+            'patient_cid' => 'required|string',
+            'patient_hn' => 'nullable|string',
+            'patient_pname' => 'required|string',
+            'patient_fname' => 'required|string',
+            'patient_lname' => 'required|string',
+            'patient_birthdate' => 'nullable|date',
         ]);
 
-        // If time slot is being changed
+        // ถ้ามีการเปลี่ยนช่วงเวลา
         if ($appointment->time_slot_id != $validated['time_slot_id']) {
             $oldTimeSlot = $appointment->timeSlot;
             $newTimeSlot = TimeSlot::findOrFail($validated['time_slot_id']);
 
-            // Check if the new time slot is available
+            // ตรวจสอบว่าช่วงเวลาใหม่ยังว่างหรือไม่
             if (!$newTimeSlot->isAvailable()) {
-                return back()->withErrors(['time_slot_id' => 'This time slot is no longer available.'])
+                return back()->withErrors(['time_slot_id' => 'ช่วงเวลานี้ไม่ว่างแล้ว กรุณาเลือกช่วงเวลาอื่น'])
                     ->withInput();
             }
 
-            // Decrement old time slot booked_appointments count
-            $oldTimeSlot->decrement('booked_appointments');
+            // เริ่ม transaction
+            DB::beginTransaction();
 
-            // Increment new time slot booked_appointments count
-            $newTimeSlot->increment('booked_appointments');
+            try {
+                // ลดจำนวนการนัดในช่วงเวลาเดิม
+                $oldTimeSlot->decrement('booked_appointments');
 
-            // Update appointment with new data
-            $appointment->update([
-                'time_slot_id' => $newTimeSlot->id,
-                'doctor_id' => $newTimeSlot->doctor_id,
-                'clinic_id' => $newTimeSlot->clinic_id,
-                'notes' => $validated['notes'] ?? null,
-            ]);
+                // เพิ่มจำนวนการนัดในช่วงเวลาใหม่
+                $newTimeSlot->increment('booked_appointments');
+
+                // อัพเดทข้อมูลการนัดหมาย
+                $appointment->update([
+                    'time_slot_id' => $newTimeSlot->id,
+                    'doctor_id' => $newTimeSlot->doctor_id,
+                    'clinic_id' => $newTimeSlot->clinic_id,
+                    'notes' => $validated['notes'] ?? null,
+                    'patient_cid' => $validated['patient_cid'],
+                    'patient_hn' => $validated['patient_hn'],
+                    'patient_pname' => $validated['patient_pname'],
+                    'patient_fname' => $validated['patient_fname'],
+                    'patient_lname' => $validated['patient_lname'],
+                    'patient_birthdate' => $validated['patient_birthdate'],
+                ]);
+
+                DB::commit();
+
+                return redirect()->route('appointments.show', $appointment)
+                    ->with('success', 'แก้ไขการนัดหมายเรียบร้อยแล้ว');
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Error updating appointment: ' . $e->getMessage());
+                return back()->withErrors(['error' => 'เกิดข้อผิดพลาดในการแก้ไขการนัดหมาย: ' . $e->getMessage()])
+                    ->withInput();
+            }
         } else {
-            // Just update notes
+            // ถ้าไม่มีการเปลี่ยนช่วงเวลา ให้อัพเดทเฉพาะหมายเหตุและข้อมูลผู้ป่วย
             $appointment->update([
                 'notes' => $validated['notes'] ?? null,
+                'patient_cid' => $validated['patient_cid'],
+                'patient_hn' => $validated['patient_hn'],
+                'patient_pname' => $validated['patient_pname'],
+                'patient_fname' => $validated['patient_fname'],
+                'patient_lname' => $validated['patient_lname'],
+                'patient_birthdate' => $validated['patient_birthdate'],
             ]);
-        }
 
-        return redirect()->route('appointments.show', $appointment)
-            ->with('success', 'Appointment updated successfully.');
+            return redirect()->route('appointments.show', $appointment)
+                ->with('success', 'แก้ไขการนัดหมายเรียบร้อยแล้ว');
+        }
     }
 
     public function cancel(Appointment $appointment)
