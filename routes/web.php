@@ -74,6 +74,7 @@ Route::middleware(['auth'])->group(function () {
     });
     
     // Appointment routes
+    Route::get('/get-available-dates', [AppointmentController::class, 'getAvailableDates'])->name('get.available.dates');
     Route::get('/search-patient', [AppointmentController::class, 'searchPatient'])->name('search.patient');
     Route::prefix('appointments')->name('appointments.')->group(function () {
         Route::get('/', [AppointmentController::class, 'index'])->name('index');

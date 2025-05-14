@@ -45,11 +45,12 @@
                                 <td>{{ $appointment->patient_hn ?? '-' }}</td>
                             </tr>
                             <tr>
-                                <th>วันเกิด</th>
+                                <th>อายุ</th>
                                 <td>
                                     @if($appointment->patient_birthdate)
-                                        {{ \Carbon\Carbon::parse($appointment->patient_birthdate)->format('d/m/Y') }}
-                                        (อายุ {{ \Carbon\Carbon::parse($appointment->patient_birthdate)->age }} ปี)
+                                        {{ \Carbon\Carbon::parse($appointment->patient_birthdate)->age }} ปี
+                                    @elseif($appointment->patient_age)
+                                        {{ $appointment->patient_age }} ปี
                                     @else
                                         -
                                     @endif

@@ -13,49 +13,15 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // ตั้งค่า DatePicker สำหรับช่องวันที่
-        $('#date').daterangepicker({
-            "singleDatePicker": true,
-            opens: 'center',
-            "locale": {
-                "format": "YYYY-MM-DD",
-                "separator": "-",
-                "applyLabel": "ตกลง",
-                "cancelLabel": "ยกเลิก",
-                "fromLabel": "จาก",
-                "toLabel": "ถึง",
-                "customRangeLabel": "Custom",
-                "daysOfWeek": [
-                    "อา.",
-                    "จ.",
-                    "อ.",
-                    "พุธ.",
-                    "พฤ.",
-                    "ศ.",
-                    "ส."
-                ],
-                "monthNames": [
-                    "ม.ค.",
-                    "ก.พ.",
-                    "มี.ค.",
-                    "เม.ย.",
-                    "พ.ค.",
-                    "มิ.ย.",
-                    "ก.ค.",
-                    "ส.ค.",
-                    "ก.ย.",
-                    "ต.ค.",
-                    "พ.ย.",
-                    "ธ.ค."
-                ],
-                "firstDay": 1
-            }
-        });
-
         // เมื่อคลินิกถูกเลือก ให้โหลดแพทย์ที่เกี่ยวข้อง
         $('#clinic_id').change(function() {
             const clinicId = $(this).val();
             if (clinicId) {
+                // รีเซ็ตค่าเดิม
+                $('#doctor_id').empty().append('<option value="">-- เลือกแพทย์ --</option>').prop('disabled', true);
+                $('#date').val('').prop('disabled', true);
+                $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>').prop('disabled', true);
+                
                 // ใช้ AJAX แบบ jQuery
                 $.ajax({
                     url: "{{ route('get.doctors') }}",
@@ -83,10 +49,9 @@
                             $('#doctor_id').prop('disabled', true);
                         }
                         
-                        // ตรวจสอบช่วงเวลา
+                        // หากมีการเลือกแพทย์แล้ว ให้โหลดวันที่ด้วย
                         if ($('#doctor_id').val()) {
-                            $('#date').prop('disabled', false);
-                            checkForTimeSlots();
+                            $('#doctor_id').trigger('change');
                         }
                     },
                     error: function(xhr, status, error) {
@@ -107,19 +72,89 @@
         
         // เมื่อแพทย์ถูกเลือก
         $('#doctor_id').change(function() {
-            if (this.value) {
-                $('#date').prop('disabled', false);
-                checkForTimeSlots();
-            } else {
-                $('#date').val('').prop('disabled', true);
-                $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>');
-                $('#time_slot_id').prop('disabled', true);
+            // รีเซ็ตค่าเวลาและวันที่
+            $('#date').val('').prop('disabled', true);
+            $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>').prop('disabled', true);
+            
+            const clinicId = $('#clinic_id').val();
+            const doctorId = $(this).val();
+            
+            if (clinicId && doctorId) {
+                // ใช้ AJAX เพื่อดึงวันที่ที่มีช่วงเวลาว่าง
+                $.ajax({
+                    url: "{{ route('get.available.dates') }}",
+                    type: "GET",
+                    dataType: "json",
+                    data: {
+                        clinic_id: clinicId,
+                        doctor_id: doctorId
+                    },
+                    success: function(availableDates) {
+                        console.log('Available dates:', availableDates);
+                        
+                        // กรณีที่เป็นการแก้ไข ให้เพิ่มวันที่ปัจจุบันเข้าไปด้วย
+                        @if(old('date', $appointment->timeSlot->date))
+                            const currentDate = "{{ old('date', $appointment->timeSlot->date) }}";
+                            if (!availableDates.includes(currentDate)) {
+                                availableDates.push(currentDate);
+                                availableDates.sort(); // เรียงวันที่ใหม่
+                            }
+                        @endif
+                        
+                        if (availableDates && availableDates.length > 0) {
+                            // สร้าง datepicker with available dates
+                            $('#date').daterangepicker({
+                                "singleDatePicker": true,
+                                opens: 'center',
+                                "locale": {
+                                    "format": "YYYY-MM-DD",
+                                    "separator": "-",
+                                    "applyLabel": "ตกลง",
+                                    "cancelLabel": "ยกเลิก",
+                                    "fromLabel": "จาก",
+                                    "toLabel": "ถึง",
+                                    "customRangeLabel": "Custom",
+                                    "daysOfWeek": [
+                                        "อา.", "จ.", "อ.", "พุธ.", "พฤ.", "ศ.", "ส."
+                                    ],
+                                    "monthNames": [
+                                        "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+                                        "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+                                    ],
+                                    "firstDay": 1
+                                },
+                                isInvalidDate: function(date) {
+                                    // ตรวจสอบว่าวันที่อยู่ในวันที่มีให้เลือกหรือไม่
+                                    return !availableDates.includes(date.format('YYYY-MM-DD'));
+                                }
+                            });
+                            
+                            $('#date').prop('disabled', false);
+                            
+                            // ถ้ามีค่าเดิม ให้ตั้งค่า
+                            @if(old('date', $appointment->timeSlot->date))
+                                $('#date').val("{{ old('date', $appointment->timeSlot->date) }}");
+                            @endif
+                            
+                            // เมื่อเลือกวันที่
+                            $('#date').on('apply.daterangepicker', function(ev, picker) {
+                                checkForTimeSlots();
+                            });
+                            
+                            // หากมีวันที่อยู่แล้ว ให้ดึงช่วงเวลาทันที
+                            if ($('#date').val()) {
+                                checkForTimeSlots();
+                            }
+                        } else {
+                            alert('ไม่พบวันที่ว่างสำหรับแพทย์และคลินิกที่เลือก');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('AJAX error:', error, xhr);
+                        alert('เกิดข้อผิดพลาดในการดึงข้อมูลวันที่');
+                    }
+                });
             }
-        });
-        
-        // เมื่อวันที่ถูกเลือก
-        $('#date').change(function() {
-            checkForTimeSlots();
         });
         
         // ตรวจสอบช่วงเวลาที่ว่าง
@@ -247,11 +282,12 @@
                                 <td>{{ $appointment->patient_hn ?? '-' }}</td>
                             </tr>
                             <tr>
-                                <th>วันเกิด</th>
+                                <th>อายุ</th>
                                 <td>
                                     @if($appointment->patient_birthdate)
-                                        {{ \Carbon\Carbon::parse($appointment->patient_birthdate)->format('d/m/Y') }}
-                                        (อายุ {{ \Carbon\Carbon::parse($appointment->patient_birthdate)->age }} ปี)
+                                        {{ \Carbon\Carbon::parse($appointment->patient_birthdate)->age }} ปี
+                                    @elseif($appointment->patient_age)
+                                        {{ $appointment->patient_age }} ปี
                                     @else
                                         -
                                     @endif
@@ -273,6 +309,7 @@
                 <input type="hidden" name="patient_fname" value="{{ $appointment->patient_fname }}">
                 <input type="hidden" name="patient_lname" value="{{ $appointment->patient_lname }}">
                 <input type="hidden" name="patient_birthdate" value="{{ $appointment->patient_birthdate }}">
+                <input type="hidden" name="patient_age" value="{{ $appointment->patient_age }}">
                 
                 <!-- ข้อมูลการนัดหมาย -->
                 <div class="block block-rounded mb-4">
@@ -315,7 +352,7 @@
                             <div class="col-md-6">
                                 <div class="mb-4">
                                     <label class="form-label fw-bold text-primary" for="date">วันที่ <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control @error('date') is-invalid @enderror" id="date" name="date" min="{{ date('Y-m-d') }}" value="{{ old('date', $appointment->timeSlot->date) }}">
+                                    <input type="text" class="form-control @error('date') is-invalid @enderror" id="date" name="date" value="{{ old('date', $appointment->timeSlot->date) }}">
                                     @error('date')
                                         <span class="invalid-feedback">{{ $message }}</span>
                                     @enderror

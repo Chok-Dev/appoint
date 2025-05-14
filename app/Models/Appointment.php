@@ -22,6 +22,7 @@ class Appointment extends Model
         'patient_fname',
         'patient_lname',
         'patient_birthdate',
+        'patient_age',
     ];
 
     public function user()

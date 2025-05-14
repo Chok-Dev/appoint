@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use App\Models\Clinic;
 use App\Models\Doctor;
 use App\Models\TimeSlot;
@@ -46,24 +47,22 @@ class AppointmentController extends Controller
     }
     public function index()
     {
+        // Set the number of items per page
+        $perPage = 10; // You can adjust this value as needed
+
         // For admin users, show all appointments
         if (Auth::user()->isAdmin()) {
             $appointments = Appointment::with(['user', 'timeSlot', 'doctor', 'clinic'])
                 ->orderBy('created_at', 'desc')
-                ->get();
+                ->paginate($perPage);
         } else {
             // For regular users, show only their appointments
             $appointments = Auth::user()->appointments()
                 ->with(['timeSlot', 'doctor', 'clinic'])
                 ->orderBy('created_at', 'desc')
-                ->get();
+                ->paginate($perPage);
         }
-        
-        /*   $his = DB::connection('pgsql')->table('person')
-            ->selectRaw('cid,pname,fname,lname,birthdate,patient_hn')
-            ->where('cid', '=', '1418000003320')
-            ->get(); */
-        /* dd($his); */
+
         return view('appointments.index', compact('appointments'));
     }
 
@@ -87,7 +86,62 @@ class AppointmentController extends Controller
 
         return response()->json($doctors);
     }
+    public function getAvailableDates(Request $request)
+    {
+        $request->validate([
+            'clinic_id' => 'required|exists:clinics,id',
+            'doctor_id' => 'required|exists:doctors,id',
+        ]);
 
+        try {
+            // Get all available dates for the doctor and clinic
+            $availableDates = TimeSlot::where('clinic_id', $request->clinic_id)
+                ->where('doctor_id', $request->doctor_id)
+                ->where('date', '>=', now()->format('Y-m-d')) // Only future dates
+                ->where('is_active', true)
+                ->whereRaw('booked_appointments < max_appointments')
+                ->orderBy('date')
+                ->pluck('date')
+                ->unique()
+                ->values()
+                ->toArray();
+
+            // Format dates for consistency
+            $formattedDates = [];
+            foreach ($availableDates as $date) {
+                $formattedDates[] = Carbon::parse($date)->format('Y-m-d');
+            }
+
+            // If no available dates, include next 7 days as a fallback
+            if (empty($formattedDates)) {
+                $startDate = now();
+                for ($i = 0; $i < 7; $i++) {
+                    $formattedDates[] = $startDate->copy()->addDays($i)->format('Y-m-d');
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'dates' => $formattedDates,
+                'message' => empty($availableDates) ? 'ไม่พบวันที่ที่มีช่วงเวลาว่าง กำลังแสดง 7 วันข้างหน้าแทน' : 'พบวันที่ที่มีช่วงเวลาว่าง'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error getting available dates: ' . $e->getMessage());
+
+            // Return next 7 days as a fallback
+            $fallbackDates = [];
+            $startDate = now();
+            for ($i = 0; $i < 7; $i++) {
+                $fallbackDates[] = $startDate->copy()->addDays($i)->format('Y-m-d');
+            }
+
+            return response()->json([
+                'success' => false,
+                'dates' => $fallbackDates,
+                'message' => 'เกิดข้อผิดพลาดในการดึงข้อมูลวันที่: ' . $e->getMessage() . ' กำลังแสดง 7 วันข้างหน้าแทน'
+            ]);
+        }
+    }
     // AJAX endpoint to get available time slots
     public function getTimeSlots(Request $request)
     {
@@ -129,10 +183,11 @@ class AppointmentController extends Controller
             'patient_fname' => 'nullable|string',
             'patient_lname' => 'nullable|string',
             'patient_birthdate' => 'nullable|date',
+            'patient_age' => 'nullable|integer|min:0|max:120',
             'manual_pname' => 'required_if:patient_pname,null',
             'manual_fname' => 'required_if:patient_fname,null',
             'manual_lname' => 'required_if:patient_lname,null',
-            'manual_birthdate' => 'required_if:patient_birthdate,null',
+            'manual_age' => 'required_if:patient_birthdate,null',
         ]);
 
         $timeSlot = TimeSlot::findOrFail($validated['time_slot_id']);
@@ -150,7 +205,8 @@ class AppointmentController extends Controller
             'pname' => $validated['patient_pname'] ?? $validated['manual_pname'] ?? null,
             'fname' => $validated['patient_fname'] ?? $validated['manual_fname'] ?? null,
             'lname' => $validated['patient_lname'] ?? $validated['manual_lname'] ?? null,
-            'birthdate' => $validated['patient_birthdate'] ?? $validated['manual_birthdate'] ?? null,
+            'birthdate' => $validated['patient_birthdate'] ?? null,
+            'age' => $validated['patient_age'] ?? $validated['manual_age'] ?? null,
         ];
 
         // เริ่ม transaction
@@ -178,6 +234,7 @@ class AppointmentController extends Controller
                 'patient_fname' => $patientData['fname'],
                 'patient_lname' => $patientData['lname'],
                 'patient_birthdate' => $patientData['birthdate'],
+                'patient_age' => $patientData['age'],
             ]);
 
             // เพิ่มจำนวนการนัดหมายใน time slot
@@ -251,6 +308,7 @@ class AppointmentController extends Controller
             'patient_fname' => 'required|string',
             'patient_lname' => 'required|string',
             'patient_birthdate' => 'nullable|date',
+            'patient_age' => 'nullable|integer|min:0|max:120',
         ]);
 
         // ถ้ามีการเปลี่ยนช่วงเวลา
@@ -286,6 +344,7 @@ class AppointmentController extends Controller
                     'patient_fname' => $validated['patient_fname'],
                     'patient_lname' => $validated['patient_lname'],
                     'patient_birthdate' => $validated['patient_birthdate'],
+                    'patient_age' => $validated['patient_age'],
                 ]);
 
                 DB::commit();
@@ -308,6 +367,7 @@ class AppointmentController extends Controller
                 'patient_fname' => $validated['patient_fname'],
                 'patient_lname' => $validated['patient_lname'],
                 'patient_birthdate' => $validated['patient_birthdate'],
+                'patient_age' => $validated['patient_age'],
             ]);
 
             return redirect()->route('appointments.show', $appointment)

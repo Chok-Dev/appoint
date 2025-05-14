@@ -13,84 +13,6 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // ตั้งค่า DatePicker สำหรับช่องวันที่
-        $('#date').daterangepicker({
-            "singleDatePicker": true,
-            opens: 'center',
-            "locale": {
-                "format": "YYYY-MM-DD",
-                "separator": "-",
-                "applyLabel": "ตกลง",
-                "cancelLabel": "ยกเลิก",
-                "fromLabel": "จาก",
-                "toLabel": "ถึง",
-                "customRangeLabel": "Custom",
-                "daysOfWeek": [
-                    "อา.",
-                    "จ.",
-                    "อ.",
-                    "พุธ.",
-                    "พฤ.",
-                    "ศ.",
-                    "ส."
-                ],
-                "monthNames": [
-                    "ม.ค.",
-                    "ก.พ.",
-                    "มี.ค.",
-                    "เม.ย.",
-                    "พ.ค.",
-                    "มิ.ย.",
-                    "ก.ค.",
-                    "ส.ค.",
-                    "ก.ย.",
-                    "ต.ค.",
-                    "พ.ย.",
-                    "ธ.ค."
-                ],
-                "firstDay": 1
-            }
-        });
-        
-        // ตั้งค่า DatePicker สำหรับช่องวันเกิด (กรณีกรอกใหม่)
-        $('#birthdate').daterangepicker({
-            "singleDatePicker": true,
-            opens: 'center',
-            "locale": {
-                "format": "YYYY-MM-DD",
-                "separator": "-",
-                "applyLabel": "ตกลง",
-                "cancelLabel": "ยกเลิก",
-                "fromLabel": "จาก",
-                "toLabel": "ถึง",
-                "customRangeLabel": "Custom",
-                "daysOfWeek": [
-                    "อา.",
-                    "จ.",
-                    "อ.",
-                    "พุธ.",
-                    "พฤ.",
-                    "ศ.",
-                    "ส."
-                ],
-                "monthNames": [
-                    "ม.ค.",
-                    "ก.พ.",
-                    "มี.ค.",
-                    "เม.ย.",
-                    "พ.ค.",
-                    "มิ.ย.",
-                    "ก.ค.",
-                    "ส.ค.",
-                    "ก.ย.",
-                    "ต.ค.",
-                    "พ.ย.",
-                    "ธ.ค."
-                ],
-                "firstDay": 1
-            }
-        });
-
         // ซ่อนฟอร์มกรอกข้อมูลผู้ป่วยเมื่อโหลดหน้าครั้งแรก
         $('#patient-info-form').hide();
         
@@ -118,14 +40,21 @@
                         // พบข้อมูลผู้ป่วย
                         const patient = response.data[0];
                         
+                        // คำนวณอายุ
+                        let age = '';
+                        if (patient.birthdate) {
+                            age = moment().diff(moment(patient.birthdate), 'years');
+                        } else {
+                            age = 'ไม่มีข้อมูล';
+                        }
+                        
                         // แสดงข้อมูลผู้ป่วยที่พบ
                         let patientInfo = `
                             <div class="alert alert-success">
                                 <h5>พบข้อมูลผู้ป่วย HN: ${patient.patient_hn || 'ไม่มีข้อมูล'}</h5>
                                 <p>
                                     ชื่อ-นามสกุล: ${patient.pname} ${patient.fname} ${patient.lname}<br>
-                                    วันเกิด: ${patient.birthdate ? moment(patient.birthdate).format('DD/MM/YYYY') : 'ไม่มีข้อมูล'}<br>
-                                    อายุ: ${patient.birthdate ? moment().diff(moment(patient.birthdate), 'years') : 'ไม่มีข้อมูล'} ปี
+                                    อายุ: ${age} ปี
                                 </p>
                             </div>
                         `;
@@ -138,6 +67,7 @@
                         $('#patient_fname').val(patient.fname || '');
                         $('#patient_lname').val(patient.lname || '');
                         $('#patient_birthdate').val(patient.birthdate || '');
+                        $('#patient_age').val(age !== 'ไม่มีข้อมูล' ? age : '');
                         
                         // ซ่อนฟอร์มกรอกข้อมูลผู้ป่วย
                         $('#patient-info-form').hide();
@@ -158,7 +88,7 @@
                         $('#manual_pname').val('');
                         $('#manual_fname').val('');
                         $('#manual_lname').val('');
-                        $('#manual_birthdate').val('');
+                        $('#manual_age').val('');
                     }
                 },
                 error: function(xhr, status, error) {
@@ -180,6 +110,14 @@
         $('#clinic_id').change(function() {
             const clinicId = $(this).val();
             if (clinicId) {
+                // รีเซ็ตค่าเดิม
+                $('#doctor_id').empty().append('<option value="">-- เลือกแพทย์ --</option>').prop('disabled', true);
+                $('#date').val('').prop('disabled', true);
+                $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>').prop('disabled', true);
+                
+                // แสดง loading spinner
+                $('#doctor-loading').show();
+                
                 // ใช้ AJAX แบบ jQuery
                 $.ajax({
                     url: "{{ route('get.doctors') }}",
@@ -189,6 +127,7 @@
                         clinic_id: clinicId
                     },
                     success: function(data) {
+                        $('#doctor-loading').hide();
                         console.log('Doctors data:', data);
                         $('#doctor_id').empty().append('<option value="">-- เลือกแพทย์ --</option>');
                         
@@ -203,6 +142,7 @@
                         }
                     },
                     error: function(xhr, status, error) {
+                        $('#doctor-loading').hide();
                         console.error('AJAX error:', error, xhr);
                         $('#doctor_id').empty().append('<option value="">-- เกิดข้อผิดพลาดในการโหลดข้อมูล --</option>');
                         $('#doctor_id').prop('disabled', true);
@@ -220,19 +160,86 @@
         
         // เมื่อแพทย์ถูกเลือก
         $('#doctor_id').change(function() {
-            if (this.value) {
-                $('#date').prop('disabled', false);
-                checkForTimeSlots();
-            } else {
-                $('#date').val('').prop('disabled', true);
-                $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>');
-                $('#time_slot_id').prop('disabled', true);
+            // รีเซ็ตค่าเวลาและวันที่
+            $('#date').val('').prop('disabled', true);
+            $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>').prop('disabled', true);
+            
+            const clinicId = $('#clinic_id').val();
+            const doctorId = $(this).val();
+            
+            if (clinicId && doctorId) {
+                // แสดง loading
+                $('#date-loading').show();
+                $('#date-message').hide();
+                
+                // ใช้ AJAX เพื่อดึงวันที่ที่มีช่วงเวลาว่าง
+                $.ajax({
+                    url: "{{ route('get.available.dates') }}",
+                    type: "GET",
+                    dataType: "json",
+                    data: {
+                        clinic_id: clinicId,
+                        doctor_id: doctorId
+                    },
+                    success: function(response) {
+                        $('#date-loading').hide();
+                        console.log('Available dates response:', response);
+                        
+                        // แสดงข้อความแจ้งเตือนถ้ามี
+                        if (response.message && !response.success) {
+                            $('#date-message').html(`<div class="alert alert-warning mt-2">${response.message}</div>`).show();
+                        } else if (response.message) {
+                            $('#date-message').html(`<div class="alert alert-info mt-2">${response.message}</div>`).show();
+                        } else {
+                            $('#date-message').hide();
+                        }
+                        
+                        const availableDates = response.dates || [];
+                        
+                        // ตรวจสอบว่ามีวันที่ให้เลือกหรือไม่
+                        if (availableDates && availableDates.length > 0) {
+                            // สร้าง datepicker ปกติ (ไม่ใช้ isInvalidDate)
+                            $('#date').daterangepicker({
+                                "singleDatePicker": true,
+                                opens: 'center',
+                                "minDate": moment().format('YYYY-MM-DD'), // ไม่ให้เลือกวันที่ผ่านมาแล้ว
+                                "locale": {
+                                    "format": "YYYY-MM-DD",
+                                    "separator": "-",
+                                    "applyLabel": "ตกลง",
+                                    "cancelLabel": "ยกเลิก",
+                                    "fromLabel": "จาก",
+                                    "toLabel": "ถึง",
+                                    "customRangeLabel": "Custom",
+                                    "daysOfWeek": [
+                                        "อา.", "จ.", "อ.", "พุธ.", "พฤ.", "ศ.", "ส."
+                                    ],
+                                    "monthNames": [
+                                        "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+                                        "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+                                    ],
+                                    "firstDay": 1
+                                }
+                            });
+                            
+                            $('#date').prop('disabled', false);
+                            
+                            // เมื่อเลือกวันที่
+                            $('#date').on('apply.daterangepicker', function(ev, picker) {
+                                checkForTimeSlots();
+                            });
+                        } else {
+                            // กรณีไม่มีวันที่ให้เลือก
+                            $('#date-message').html(`<div class="alert alert-danger mt-2">ไม่พบวันที่ที่มีช่วงเวลาว่าง</div>`).show();
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        $('#date-loading').hide();
+                        console.error('AJAX error:', error, xhr);
+                        $('#date-message').html(`<div class="alert alert-danger mt-2">เกิดข้อผิดพลาดในการดึงข้อมูลวันที่: ${error}</div>`).show();
+                    }
+                });
             }
-        });
-        
-        // เมื่อวันที่ถูกเลือก
-        $('#date').change(function() {
-            checkForTimeSlots();
         });
         
         // ตรวจสอบช่วงเวลาที่ว่าง
@@ -242,6 +249,11 @@
             const date = $('#date').val();
             
             if (clinicId && doctorId && date) {
+                // แสดง loading
+                $('#time-loading').show();
+                $('#time_slot_id').prop('disabled', true);
+                $('#time-message').hide();
+                
                 // ใช้ AJAX แบบ jQuery
                 $.ajax({
                     url: "{{ route('get.timeslots') }}",
@@ -253,6 +265,7 @@
                         date: date
                     },
                     success: function(data) {
+                        $('#time-loading').hide();
                         console.log('TimeSlots data:', data);
                         $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>');
                         
@@ -265,20 +278,25 @@
                                 $('#time_slot_id').append('<option value="' + timeSlot.id + '">' + startTime + ' - ' + endTime + ' (ว่าง ' + availableSlots + ' คิว)</option>');
                             });
                             $('#time_slot_id').prop('disabled', false);
+                            $('#time-message').hide();
                         } else {
                             $('#time_slot_id').append('<option disabled>ไม่พบช่วงเวลาที่ว่าง</option>');
                             $('#time_slot_id').prop('disabled', true);
+                            $('#time-message').html(`<div class="alert alert-warning mt-2">ไม่พบช่วงเวลาที่ว่างในวันที่ ${date}</div>`).show();
                         }
                     },
                     error: function(xhr, status, error) {
+                        $('#time-loading').hide();
                         console.error('AJAX error:', error, xhr);
                         $('#time_slot_id').empty().append('<option value="">-- เกิดข้อผิดพลาดในการโหลดข้อมูล --</option>');
                         $('#time_slot_id').prop('disabled', true);
+                        $('#time-message').html(`<div class="alert alert-danger mt-2">เกิดข้อผิดพลาดในการโหลดข้อมูลช่วงเวลา: ${error}</div>`).show();
                     }
                 });
             } else {
                 $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>');
                 $('#time_slot_id').prop('disabled', true);
+                $('#time-message').hide();
             }
         }
     });
@@ -366,8 +384,8 @@
                         <div class="row mb-4">
                             <div class="col-md-6">
                                 <div class="mb-4">
-                                    <label class="form-label fw-bold text-primary" for="manual_birthdate">วันเกิด <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="manual_birthdate" name="manual_birthdate" value="{{ old('manual_birthdate') }}">
+                                    <label class="form-label fw-bold text-primary" for="manual_age">อายุ (ปี) <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" id="manual_age" name="manual_age" min="0" max="120" value="{{ old('manual_age') }}">
                                 </div>
                             </div>
                         </div>
@@ -385,6 +403,7 @@
                 <input type="hidden" id="patient_fname" name="patient_fname" value="{{ old('patient_fname') }}">
                 <input type="hidden" id="patient_lname" name="patient_lname" value="{{ old('patient_lname') }}">
                 <input type="hidden" id="patient_birthdate" name="patient_birthdate" value="{{ old('patient_birthdate') }}">
+                <input type="hidden" id="patient_age" name="patient_age" value="{{ old('patient_age') }}">
                 
                 <!-- ข้อมูลการนัดหมาย -->
                 <div class="block block-rounded mb-4">
@@ -407,6 +426,12 @@
                                     @error('clinic_id')
                                         <span class="invalid-feedback">{{ $message }}</span>
                                     @enderror
+                                    <div id="doctor-loading" class="mt-2" style="display: none;">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <small class="text-muted ms-1">กำลังโหลดข้อมูลแพทย์...</small>
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -426,10 +451,17 @@
                             <div class="col-md-6">
                                 <div class="mb-4">
                                     <label class="form-label fw-bold text-primary" for="date">วันที่ <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control @error('date') is-invalid @enderror" id="date" name="date" min="{{ date('Y-m-d') }}" value="{{ old('date') }}" disabled>
+                                    <input type="text" class="form-control @error('date') is-invalid @enderror" id="date" name="date" value="{{ old('date') }}" disabled>
                                     @error('date')
                                         <span class="invalid-feedback">{{ $message }}</span>
                                     @enderror
+                                    <div id="date-loading" class="mt-2" style="display: none;">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <small class="text-muted ms-1">กำลังโหลดข้อมูลวันที่...</small>
+                                    </div>
+                                    <div id="date-message" class="mt-2" style="display: none;"></div>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -441,6 +473,13 @@
                                     @error('time_slot_id')
                                         <span class="invalid-feedback">{{ $message }}</span>
                                     @enderror
+                                    <div id="time-loading" class="mt-2" style="display: none;">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <small class="text-muted ms-1">กำลังโหลดข้อมูลช่วงเวลา...</small>
+                                    </div>
+                                    <div id="time-message" class="mt-2" style="display: none;"></div>
                                 </div>
                             </div>
                         </div>
