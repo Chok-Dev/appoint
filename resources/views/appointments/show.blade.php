@@ -29,7 +29,37 @@
 
             <div class="row">
                 <div class="col-md-6">
-                    <h4 class="fw-semibold mb-4">ข้อมูลนัดหมาย</h4>
+                    <h4 class="fw-semibold mb-4">ข้อมูลผู้ป่วย</h4>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th style="width: 30%;">ชื่อ-นามสกุล</th>
+                                <td>{{ $appointment->patient_pname }} {{ $appointment->patient_fname }} {{ $appointment->patient_lname }}</td>
+                            </tr>
+                            <tr>
+                                <th>เลขบัตรประชาชน</th>
+                                <td>{{ $appointment->patient_cid }}</td>
+                            </tr>
+                            <tr>
+                                <th>HN</th>
+                                <td>{{ $appointment->patient_hn ?? '-' }}</td>
+                            </tr>
+                            <tr>
+                                <th>วันเกิด</th>
+                                <td>
+                                    @if($appointment->patient_birthdate)
+                                        {{ \Carbon\Carbon::parse($appointment->patient_birthdate)->format('d/m/Y') }}
+                                        (อายุ {{ \Carbon\Carbon::parse($appointment->patient_birthdate)->age }} ปี)
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h4 class="fw-semibold mb-4">ข้อมูลการนัดหมาย</h4>
                     <div class="table-responsive">
                         <table class="table table-bordered">
                             <tr>
@@ -69,7 +99,10 @@
                         </table>
                     </div>
                 </div>
-                <div class="col-md-6">
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-md-12">
                     <h4 class="fw-semibold mb-4">ข้อมูลผู้นัด</h4>
                     <div class="table-responsive">
                         <table class="table table-bordered">
@@ -130,6 +163,7 @@
             <div class="modal-body">
                 <p>คุณต้องการยกเลิกการนัดหมายนี้ใช่หรือไม่?</p>
                 <p>
+                    <strong>ผู้ป่วย:</strong> {{ $appointment->patient_pname }} {{ $appointment->patient_fname }} {{ $appointment->patient_lname }}<br>
                     <strong>คลินิก:</strong> {{ $appointment->clinic->name }}<br>
                     <strong>แพทย์:</strong> {{ $appointment->doctor->name }}<br>
                     <strong>วันที่:</strong> {{ \Carbon\Carbon::parse($appointment->timeSlot->date)->format('d/m/Y') }}<br>

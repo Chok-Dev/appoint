@@ -28,28 +28,99 @@ Route::get('/dashboard', function () {
 
 // Protected routes requiring authentication
 Route::middleware(['auth'])->group(function () {
+    
     // Group routes
-    Route::resource('groups', GroupController::class);
+    Route::prefix('groups')->name('groups.')->group(function () {
+        Route::get('/', [GroupController::class, 'index'])->name('index');
+        Route::get('/create', [GroupController::class, 'create'])->name('create');
+        Route::post('/', [GroupController::class, 'store'])->name('store');
+        Route::get('/{group}', [GroupController::class, 'show'])->name('show');
+        Route::get('/{group}/edit', [GroupController::class, 'edit'])->name('edit');
+        Route::put('/{group}', [GroupController::class, 'update'])->name('update');
+        Route::delete('/{group}', [GroupController::class, 'destroy'])->name('destroy');
+    });
     
     // Clinic routes
-    Route::resource('clinics', ClinicController::class);
+    Route::prefix('clinics')->name('clinics.')->group(function () {
+        Route::get('/', [ClinicController::class, 'index'])->name('index');
+        Route::get('/create', [ClinicController::class, 'create'])->name('create');
+        Route::post('/', [ClinicController::class, 'store'])->name('store');
+        Route::get('/{clinic}', [ClinicController::class, 'show'])->name('show');
+        Route::get('/{clinic}/edit', [ClinicController::class, 'edit'])->name('edit');
+        Route::put('/{clinic}', [ClinicController::class, 'update'])->name('update');
+        Route::delete('/{clinic}', [ClinicController::class, 'destroy'])->name('destroy');
+    });
     
     // Doctor routes
-    Route::resource('doctors', DoctorController::class);
+    Route::prefix('doctors')->name('doctors.')->group(function () {
+        Route::get('/', [DoctorController::class, 'index'])->name('index');
+        Route::get('/create', [DoctorController::class, 'create'])->name('create');
+        Route::post('/', [DoctorController::class, 'store'])->name('store');
+        Route::get('/{doctor}', [DoctorController::class, 'show'])->name('show');
+        Route::get('/{doctor}/edit', [DoctorController::class, 'edit'])->name('edit');
+        Route::put('/{doctor}', [DoctorController::class, 'update'])->name('update');
+        Route::delete('/{doctor}', [DoctorController::class, 'destroy'])->name('destroy');
+    });
     
     // TimeSlot routes
-    Route::resource('timeslots', TimeSlotController::class);
+    Route::prefix('timeslots')->name('timeslots.')->group(function () {
+        Route::get('/', [TimeSlotController::class, 'index'])->name('index');
+        Route::get('/create', [TimeSlotController::class, 'create'])->name('create');
+        Route::post('/', [TimeSlotController::class, 'store'])->name('store');
+        Route::get('/{timeSlot}', [TimeSlotController::class, 'show'])->name('show');
+        Route::get('/{timeSlot}/edit', [TimeSlotController::class, 'edit'])->name('edit');
+        Route::put('/{timeSlot}', [TimeSlotController::class, 'update'])->name('update');
+        Route::delete('/{timeSlot}', [TimeSlotController::class, 'destroy'])->name('destroy');
+    });
     
     // Appointment routes
-    Route::resource('appointments', AppointmentController::class);
-    Route::post('/appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
+    Route::get('/search-patient', [AppointmentController::class, 'searchPatient'])->name('search.patient');
+    Route::prefix('appointments')->name('appointments.')->group(function () {
+        Route::get('/', [AppointmentController::class, 'index'])->name('index');
+        Route::get('/create', [AppointmentController::class, 'create'])->name('create');
+        Route::post('/', [AppointmentController::class, 'store'])->name('store');
+        Route::get('/{appointment}', [AppointmentController::class, 'show'])->name('show');
+        Route::get('/{appointment}/edit', [AppointmentController::class, 'edit'])->name('edit');
+        Route::put('/{appointment}', [AppointmentController::class, 'update'])->name('update');
+        Route::post('/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('cancel');
+        
+        // Admin-only route
+        Route::middleware(['admin'])->group(function () {
+            Route::post('/{appointment}/status', [AppointmentController::class, 'updateStatus'])->name('updateStatus');
+        });
+    });
     
-    // Admin-only routes
-    Route::middleware(['admin'])->group(function () {
-        Route::post('/appointments/{appointment}/status', [AppointmentController::class, 'updateStatus'])->name('appointments.updateStatus');
+    // Profile routes
+    Route::prefix('profile')->name('profile.')->group(function () {
+        Route::get('/edit', [ProfileController::class, 'edit'])->name('edit');
+        Route::patch('/', [ProfileController::class, 'update'])->name('update');
+        Route::delete('/', [ProfileController::class, 'destroy'])->name('destroy');
     });
     
     // AJAX routes
     Route::get('/get-doctors', [AppointmentController::class, 'getDoctors'])->name('get.doctors');
     Route::get('/get-timeslots', [AppointmentController::class, 'getTimeSlots'])->name('get.timeslots');
+    
+    // Test route for debugging timeslot deletion
+    Route::get('/test-delete-timeslot/{id}', function($id) {
+        try {
+            $timeSlot = \App\Models\TimeSlot::find($id);
+            if (!$timeSlot) {
+                return "TimeSlot #$id not found";
+            }
+            
+            // Delete related appointments first
+            $appointments = $timeSlot->appointments()->get();
+            foreach($appointments as $appointment) {
+                $appointment->delete();
+            }
+            
+            // Then delete the timeslot
+            $result = $timeSlot->delete();
+            
+            return "Delete result: " . ($result ? "Success" : "Failed");
+        } catch (\Exception $e) {
+            return "Error: " . $e->getMessage();
+        }
+    })->name('test.delete.timeslot');
 });

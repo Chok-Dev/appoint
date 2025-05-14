@@ -41,7 +41,15 @@
 
     <!-- Load and set dark mode preference (blocking script to prevent flashing) -->
     <script src="{{ asset('js/setTheme.js') }}"></script>
+    <script src="{{ asset('js/lib/jquery.min.js') }}"></script>
     @yield('js')
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@100;200;300;400;500;600;700&display=swap');
+
+        * {
+            font-family: 'IBM Plex Sans Thai', sans-serif;
+        }
+    </style>
 </head>
 
 <body>
@@ -89,7 +97,7 @@
 
       'sidebar-dark page-header-dark dark-mode'   Enable dark mode (light sidebar/header is not supported with dark mode)
   -->
-    <div id="page-container" class="sidebar-o enable-page-overlay side-scroll page-header-modern main-content-boxed">
+    <div id="page-container" class="sidebar-o enable-page-overlay side-scroll page-header-modern main-content-narrow">
         <!-- Side Overlay-->
         <aside id="side-overlay">
             <!-- Side Header -->
@@ -523,12 +531,12 @@
             <div class="content py-3">
                 <div class="row fs-sm">
                     <div class="col-sm-6 order-sm-2 py-1 text-center text-sm-end">
-                        Crafted with <i class="fa fa-heart text-danger"></i> by <a class="fw-semibold"
-                            href="https://pixelcave.com" target="_blank">pixelcave</a>
+                        Made with <i class="fa fa-heart text-danger"></i> by <a class="fw-semibold"
+                            href="https://pixelcave.com" target="_blank">Jaroenrach</a>
                     </div>
                     <div class="col-sm-6 order-sm-1 py-1 text-center text-sm-start">
                         <a class="fw-semibold" href="https://pixelcave.com/products/codebase"
-                            target="_blank">Codebase</a> &copy; <span data-toggle="year-copy"></span>
+                            target="_blank">Nonghan Hospital</a> &copy; <span data-toggle="year-copy"></span>
                     </div>
                 </div>
             </div>

@@ -36,6 +36,9 @@
                     <table class="table table-bordered table-striped table-vcenter">
                         <thead>
                             <tr>
+                                <th>ลำดับ</th>
+                                <th>ผู้ป่วย</th>
+                                <th>HN</th>
                                 <th>คลินิก</th>
                                 <th>แพทย์</th>
                                 <th>วันที่</th>
@@ -50,6 +53,13 @@
                         <tbody>
                             @foreach($appointments as $appointment)
                                 <tr>
+                                    <td>{{ $loop->iteration }}</td>
+                                    <td>
+                                        {{ $appointment->patient_pname }} {{ $appointment->patient_fname }} {{ $appointment->patient_lname }}
+                                        <br>
+                                        <small class="text-muted">{{ $appointment->patient_cid }}</small>
+                                    </td>
+                                    <td>{{ $appointment->patient_hn ?? '-' }}</td>
                                     <td>{{ $appointment->clinic->name }}</td>
                                     <td>{{ $appointment->doctor->name }}</td>
                                     <td>{{ \Carbon\Carbon::parse($appointment->timeSlot->date)->format('d/m/Y') }}</td>
@@ -94,6 +104,7 @@
                                                     <div class="modal-body">
                                                         <p>คุณต้องการยกเลิกการนัดหมายนี้ใช่หรือไม่?</p>
                                                         <p>
+                                                            <strong>ผู้ป่วย:</strong> {{ $appointment->patient_pname }} {{ $appointment->patient_fname }} {{ $appointment->patient_lname }}<br>
                                                             <strong>คลินิก:</strong> {{ $appointment->clinic->name }}<br>
                                                             <strong>แพทย์:</strong> {{ $appointment->doctor->name }}<br>
                                                             <strong>วันที่:</strong> {{ \Carbon\Carbon::parse($appointment->timeSlot->date)->format('d/m/Y') }}<br>

@@ -1,105 +1,285 @@
 @extends('layouts.backend')
 
+@section('css')
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.47/css/bootstrap-datetimepicker.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+@endsection
+
 @section('js')
+<script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.47/js/bootstrap-datetimepicker.min.js"></script>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // When clinic is selected, fetch doctors
-        document.getElementById('clinic_id').addEventListener('change', function() {
-            const clinicId = this.value;
-            if (clinicId) {
-                fetchDoctors(clinicId);
-            } else {
-                // Reset doctor dropdown
-                const doctorSelect = document.getElementById('doctor_id');
-                doctorSelect.innerHTML = '<option value="">-- เลือกแพทย์ --</option>';
-                doctorSelect.disabled = true;
-                
-                // Reset date input
-                document.getElementById('date').disabled = true;
-                document.getElementById('date').value = '';
-                
-                // Reset time slots
-                document.getElementById('time_slot_id').innerHTML = '<option value="">-- เลือกช่วงเวลา --</option>';
-                document.getElementById('time_slot_id').disabled = true;
+        // ตั้งค่า DatePicker สำหรับช่องวันที่
+        $('#date').daterangepicker({
+            "singleDatePicker": true,
+            opens: 'center',
+            "locale": {
+                "format": "YYYY-MM-DD",
+                "separator": "-",
+                "applyLabel": "ตกลง",
+                "cancelLabel": "ยกเลิก",
+                "fromLabel": "จาก",
+                "toLabel": "ถึง",
+                "customRangeLabel": "Custom",
+                "daysOfWeek": [
+                    "อา.",
+                    "จ.",
+                    "อ.",
+                    "พุธ.",
+                    "พฤ.",
+                    "ศ.",
+                    "ส."
+                ],
+                "monthNames": [
+                    "ม.ค.",
+                    "ก.พ.",
+                    "มี.ค.",
+                    "เม.ย.",
+                    "พ.ค.",
+                    "มิ.ย.",
+                    "ก.ค.",
+                    "ส.ค.",
+                    "ก.ย.",
+                    "ต.ค.",
+                    "พ.ย.",
+                    "ธ.ค."
+                ],
+                "firstDay": 1
             }
         });
         
-        // When doctor is selected and date is selected, fetch time slots
-        document.getElementById('doctor_id').addEventListener('change', function() {
+        // ตั้งค่า DatePicker สำหรับช่องวันเกิด (กรณีกรอกใหม่)
+        $('#birthdate').daterangepicker({
+            "singleDatePicker": true,
+            opens: 'center',
+            "locale": {
+                "format": "YYYY-MM-DD",
+                "separator": "-",
+                "applyLabel": "ตกลง",
+                "cancelLabel": "ยกเลิก",
+                "fromLabel": "จาก",
+                "toLabel": "ถึง",
+                "customRangeLabel": "Custom",
+                "daysOfWeek": [
+                    "อา.",
+                    "จ.",
+                    "อ.",
+                    "พุธ.",
+                    "พฤ.",
+                    "ศ.",
+                    "ส."
+                ],
+                "monthNames": [
+                    "ม.ค.",
+                    "ก.พ.",
+                    "มี.ค.",
+                    "เม.ย.",
+                    "พ.ค.",
+                    "มิ.ย.",
+                    "ก.ค.",
+                    "ส.ค.",
+                    "ก.ย.",
+                    "ต.ค.",
+                    "พ.ย.",
+                    "ธ.ค."
+                ],
+                "firstDay": 1
+            }
+        });
+
+        // ซ่อนฟอร์มกรอกข้อมูลผู้ป่วยเมื่อโหลดหน้าครั้งแรก
+        $('#patient-info-form').hide();
+        
+        // เมื่อคลิกปุ่มค้นหา
+        $('#search-patient-btn').click(function() {
+            const cid = $('#cid').val();
+            if (!cid) {
+                alert('กรุณากรอกเลขบัตรประชาชน');
+                return;
+            }
+            
+            // แสดง loading
+            $('#search-result').html('<div class="d-flex justify-content-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>');
+            
+            // ส่ง AJAX request เพื่อค้นหาข้อมูลผู้ป่วย
+            $.ajax({
+                url: "{{ route('search.patient') }}",
+                type: "GET",
+                dataType: "json",
+                data: {
+                    cid: cid
+                },
+                success: function(response) {
+                    if (response.success && response.data.length > 0) {
+                        // พบข้อมูลผู้ป่วย
+                        const patient = response.data[0];
+                        
+                        // แสดงข้อมูลผู้ป่วยที่พบ
+                        let patientInfo = `
+                            <div class="alert alert-success">
+                                <h5>พบข้อมูลผู้ป่วย HN: ${patient.patient_hn || 'ไม่มีข้อมูล'}</h5>
+                                <p>
+                                    ชื่อ-นามสกุล: ${patient.pname} ${patient.fname} ${patient.lname}<br>
+                                    วันเกิด: ${patient.birthdate ? moment(patient.birthdate).format('DD/MM/YYYY') : 'ไม่มีข้อมูล'}<br>
+                                    อายุ: ${patient.birthdate ? moment().diff(moment(patient.birthdate), 'years') : 'ไม่มีข้อมูล'} ปี
+                                </p>
+                            </div>
+                        `;
+                        $('#search-result').html(patientInfo);
+                        
+                        // เก็บข้อมูลผู้ป่วยใน hidden fields
+                        $('#patient_cid').val(patient.cid);
+                        $('#patient_hn').val(patient.patient_hn || '');
+                        $('#patient_pname').val(patient.pname || '');
+                        $('#patient_fname').val(patient.fname || '');
+                        $('#patient_lname').val(patient.lname || '');
+                        $('#patient_birthdate').val(patient.birthdate || '');
+                        
+                        // ซ่อนฟอร์มกรอกข้อมูลผู้ป่วย
+                        $('#patient-info-form').hide();
+                    } else {
+                        // ไม่พบข้อมูลผู้ป่วย
+                        $('#search-result').html(`
+                            <div class="alert alert-warning">
+                                <h5>ไม่พบข้อมูลผู้ป่วย</h5>
+                                <p>กรุณากรอกข้อมูลผู้ป่วยด้านล่าง</p>
+                            </div>
+                        `);
+                        
+                        // แสดงฟอร์มกรอกข้อมูลผู้ป่วย
+                        $('#patient-info-form').show();
+                        
+                        // เก็บ cid ที่ค้นหาใน hidden field
+                        $('#patient_cid').val(cid);
+                        $('#manual_pname').val('');
+                        $('#manual_fname').val('');
+                        $('#manual_lname').val('');
+                        $('#manual_birthdate').val('');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX error:', error, xhr);
+                    $('#search-result').html(`
+                        <div class="alert alert-danger">
+                            <h5>เกิดข้อผิดพลาดในการค้นหา</h5>
+                            <p>${error}</p>
+                        </div>
+                    `);
+                    
+                    // แสดงฟอร์มกรอกข้อมูลผู้ป่วย
+                    $('#patient-info-form').show();
+                }
+            });
+        });
+
+        // เมื่อคลินิกถูกเลือก ให้โหลดแพทย์ที่เกี่ยวข้อง
+        $('#clinic_id').change(function() {
+            const clinicId = $(this).val();
+            if (clinicId) {
+                // ใช้ AJAX แบบ jQuery
+                $.ajax({
+                    url: "{{ route('get.doctors') }}",
+                    type: "GET",
+                    dataType: "json",
+                    data: {
+                        clinic_id: clinicId
+                    },
+                    success: function(data) {
+                        console.log('Doctors data:', data);
+                        $('#doctor_id').empty().append('<option value="">-- เลือกแพทย์ --</option>');
+                        
+                        if (data && data.length > 0) {
+                            $.each(data, function(key, value) {
+                                $('#doctor_id').append('<option value="' + value.id + '">' + value.name + '</option>');
+                            });
+                            $('#doctor_id').prop('disabled', false);
+                        } else {
+                            $('#doctor_id').append('<option disabled>ไม่พบแพทย์ในคลินิกนี้</option>');
+                            $('#doctor_id').prop('disabled', true);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('AJAX error:', error, xhr);
+                        $('#doctor_id').empty().append('<option value="">-- เกิดข้อผิดพลาดในการโหลดข้อมูล --</option>');
+                        $('#doctor_id').prop('disabled', true);
+                    }
+                });
+            } else {
+                $('#doctor_id').empty().append('<option value="">-- เลือกแพทย์ --</option>');
+                $('#doctor_id').prop('disabled', true);
+                
+                $('#date').val('').prop('disabled', true);
+                $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>');
+                $('#time_slot_id').prop('disabled', true);
+            }
+        });
+        
+        // เมื่อแพทย์ถูกเลือก
+        $('#doctor_id').change(function() {
             if (this.value) {
-                document.getElementById('date').disabled = false;
+                $('#date').prop('disabled', false);
                 checkForTimeSlots();
             } else {
-                document.getElementById('date').disabled = true;
-                document.getElementById('date').value = '';
-                document.getElementById('time_slot_id').innerHTML = '<option value="">-- เลือกช่วงเวลา --</option>';
-                document.getElementById('time_slot_id').disabled = true;
+                $('#date').val('').prop('disabled', true);
+                $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>');
+                $('#time_slot_id').prop('disabled', true);
             }
         });
         
-        document.getElementById('date').addEventListener('change', function() {
+        // เมื่อวันที่ถูกเลือก
+        $('#date').change(function() {
             checkForTimeSlots();
         });
         
+        // ตรวจสอบช่วงเวลาที่ว่าง
         function checkForTimeSlots() {
-            const clinicId = document.getElementById('clinic_id').value;
-            const doctorId = document.getElementById('doctor_id').value;
-            const date = document.getElementById('date').value;
+            const clinicId = $('#clinic_id').val();
+            const doctorId = $('#doctor_id').val();
+            const date = $('#date').val();
             
             if (clinicId && doctorId && date) {
-                fetchTimeSlots(clinicId, doctorId, date);
-            } else {
-                document.getElementById('time_slot_id').innerHTML = '<option value="">-- เลือกช่วงเวลา --</option>';
-                document.getElementById('time_slot_id').disabled = true;
-            }
-        }
-        
-        function fetchDoctors(clinicId) {
-            fetch(`{{ route('get.doctors') }}?clinic_id=${clinicId}`)
-                .then(response => response.json())
-                .then(data => {
-                    const doctorSelect = document.getElementById('doctor_id');
-                    doctorSelect.innerHTML = '<option value="">-- เลือกแพทย์ --</option>';
-                    
-                    data.forEach(doctor => {
-                        const option = document.createElement('option');
-                        option.value = doctor.id;
-                        option.textContent = doctor.name;
-                        doctorSelect.appendChild(option);
-                    });
-                    
-                    doctorSelect.disabled = false;
-                })
-                .catch(error => console.error('Error fetching doctors:', error));
-        }
-        
-        function fetchTimeSlots(clinicId, doctorId, date) {
-            fetch(`{{ route('get.timeslots') }}?clinic_id=${clinicId}&doctor_id=${doctorId}&date=${date}`)
-                .then(response => response.json())
-                .then(data => {
-                    const timeSlotSelect = document.getElementById('time_slot_id');
-                    timeSlotSelect.innerHTML = '<option value="">-- เลือกช่วงเวลา --</option>';
-                    
-                    if (data.length === 0) {
-                        const option = document.createElement('option');
-                        option.disabled = true;
-                        option.textContent = 'ไม่พบช่วงเวลาที่ว่าง';
-                        timeSlotSelect.appendChild(option);
-                    } else {
-                        data.forEach(timeSlot => {
-                            const startTime = new Date(`2000-01-01T${timeSlot.start_time}`).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-                            const endTime = new Date(`2000-01-01T${timeSlot.end_time}`).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-                            
-                            const option = document.createElement('option');
-                            option.value = timeSlot.id;
-                            option.textContent = `${startTime} - ${endTime} (ว่าง ${timeSlot.max_appointments - timeSlot.booked_appointments} คิว)`;
-                            timeSlotSelect.appendChild(option);
-                        });
+                // ใช้ AJAX แบบ jQuery
+                $.ajax({
+                    url: "{{ route('get.timeslots') }}",
+                    type: "GET",
+                    dataType: "json",
+                    data: {
+                        clinic_id: clinicId,
+                        doctor_id: doctorId,
+                        date: date
+                    },
+                    success: function(data) {
+                        console.log('TimeSlots data:', data);
+                        $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>');
+                        
+                        if (data && data.length > 0) {
+                            $.each(data, function(key, timeSlot) {
+                                let startTime = timeSlot.start_time.substr(0, 5);
+                                let endTime = timeSlot.end_time.substr(0, 5);
+                                let availableSlots = timeSlot.max_appointments - timeSlot.booked_appointments;
+                                
+                                $('#time_slot_id').append('<option value="' + timeSlot.id + '">' + startTime + ' - ' + endTime + ' (ว่าง ' + availableSlots + ' คิว)</option>');
+                            });
+                            $('#time_slot_id').prop('disabled', false);
+                        } else {
+                            $('#time_slot_id').append('<option disabled>ไม่พบช่วงเวลาที่ว่าง</option>');
+                            $('#time_slot_id').prop('disabled', true);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('AJAX error:', error, xhr);
+                        $('#time_slot_id').empty().append('<option value="">-- เกิดข้อผิดพลาดในการโหลดข้อมูล --</option>');
+                        $('#time_slot_id').prop('disabled', true);
                     }
-                    
-                    timeSlotSelect.disabled = data.length === 0;
-                })
-                .catch(error => console.error('Error fetching time slots:', error));
+                });
+            } else {
+                $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>');
+                $('#time_slot_id').prop('disabled', true);
+            }
         }
     });
 </script>
@@ -129,55 +309,146 @@
                 </div>
             @endif
 
+            <!-- ข้อมูลผู้ป่วย -->
+            <div class="block block-rounded mb-4">
+                <div class="block-header block-header-default bg-primary">
+                    <h3 class="block-title text-white">ข้อมูลผู้ป่วย</h3>
+                </div>
+                <div class="block-content">
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <div class="mb-4">
+                                <label class="form-label fw-bold text-primary" for="cid">เลขบัตรประชาชน <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="cid" name="cid" placeholder="กรอกเลขบัตรประชาชน 13 หลัก" maxlength="13" value="{{ old('cid') }}">
+                                    <button type="button" class="btn btn-primary" id="search-patient-btn">
+                                        <i class="fa fa-search me-1"></i> ค้นหา
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ผลการค้นหาผู้ป่วย -->
+                    <div id="search-result" class="mb-4">
+                        <!-- ผลการค้นหาจะถูกแสดงที่นี่ -->
+                    </div>
+                    
+                    <!-- ฟอร์มกรอกข้อมูลผู้ป่วย (กรณีไม่พบข้อมูล) -->
+                    <div id="patient-info-form">
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold text-primary" for="manual_pname">คำนำหน้า <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="manual_pname" name="manual_pname">
+                                        <option value="">-- เลือกคำนำหน้า --</option>
+                                        <option value="นาย" {{ old('manual_pname') == 'นาย' ? 'selected' : '' }}>นาย</option>
+                                        <option value="นาง" {{ old('manual_pname') == 'นาง' ? 'selected' : '' }}>นาง</option>
+                                        <option value="นางสาว" {{ old('manual_pname') == 'นางสาว' ? 'selected' : '' }}>นางสาว</option>
+                                        <option value="เด็กชาย" {{ old('manual_pname') == 'เด็กชาย' ? 'selected' : '' }}>เด็กชาย</option>
+                                        <option value="เด็กหญิง" {{ old('manual_pname') == 'เด็กหญิง' ? 'selected' : '' }}>เด็กหญิง</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold text-primary" for="manual_fname">ชื่อ <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="manual_fname" name="manual_fname" value="{{ old('manual_fname') }}">
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold text-primary" for="manual_lname">นามสกุล <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="manual_lname" name="manual_lname" value="{{ old('manual_lname') }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold text-primary" for="manual_birthdate">วันเกิด <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="manual_birthdate" name="manual_birthdate" value="{{ old('manual_birthdate') }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <form action="{{ route('appointments.store') }}" method="POST">
                 @csrf
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="mb-4">
-                            <label class="form-label" for="clinic_id">คลินิก <span class="text-danger">*</span></label>
-                            <select class="form-select @error('clinic_id') is-invalid @enderror" id="clinic_id" name="clinic_id" required>
-                                <option value="">-- เลือกคลินิก --</option>
-                                @foreach($clinics as $clinic)
-                                    <option value="{{ $clinic->id }}" {{ old('clinic_id') == $clinic->id ? 'selected' : '' }}>
-                                        {{ $clinic->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('clinic_id')
-                                <span class="invalid-feedback">{{ $message }}</span>
-                            @enderror
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-4">
-                            <label class="form-label" for="doctor_id">แพทย์ <span class="text-danger">*</span></label>
-                            <select class="form-select @error('doctor_id') is-invalid @enderror" id="doctor_id" name="doctor_id" disabled>
-                                <option value="">-- เลือกแพทย์ --</option>
-                            </select>
-                            @error('doctor_id')
-                                <span class="invalid-feedback">{{ $message }}</span>
-                            @enderror
-                        </div>
-                    </div>
-                </div>
                 
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="mb-4">
-                            <label class="form-label" for="date">วันที่ <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control @error('date') is-invalid @enderror" id="date" name="date" min="{{ date('Y-m-d') }}" value="{{ old('date') }}" disabled>
-                            @error('date')
-                                <span class="invalid-feedback">{{ $message }}</span>
-                            @enderror
-                        </div>
+                <!-- Hidden fields สำหรับเก็บข้อมูลผู้ป่วย -->
+                <input type="hidden" id="patient_cid" name="patient_cid" value="{{ old('patient_cid') }}">
+                <input type="hidden" id="patient_hn" name="patient_hn" value="{{ old('patient_hn') }}">
+                <input type="hidden" id="patient_pname" name="patient_pname" value="{{ old('patient_pname') }}">
+                <input type="hidden" id="patient_fname" name="patient_fname" value="{{ old('patient_fname') }}">
+                <input type="hidden" id="patient_lname" name="patient_lname" value="{{ old('patient_lname') }}">
+                <input type="hidden" id="patient_birthdate" name="patient_birthdate" value="{{ old('patient_birthdate') }}">
+                
+                <!-- ข้อมูลการนัดหมาย -->
+                <div class="block block-rounded mb-4">
+                    <div class="block-header block-header-default bg-primary">
+                        <h3 class="block-title text-white">ข้อมูลการนัดหมาย</h3>
                     </div>
-                    <div class="col-md-6">
+                    <div class="block-content">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold text-primary" for="clinic_id">คลินิก <span class="text-danger">*</span></label>
+                                    <select class="form-select @error('clinic_id') is-invalid @enderror" id="clinic_id" name="clinic_id" required>
+                                        <option value="">-- เลือกคลินิก --</option>
+                                        @foreach($clinics as $clinic)
+                                            <option value="{{ $clinic->id }}" {{ old('clinic_id') == $clinic->id ? 'selected' : '' }}>
+                                                {{ $clinic->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('clinic_id')
+                                        <span class="invalid-feedback">{{ $message }}</span>
+                                    @enderror
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold text-primary" for="doctor_id">แพทย์ <span class="text-danger">*</span></label>
+                                    <select class="form-select @error('doctor_id') is-invalid @enderror" id="doctor_id" name="doctor_id" disabled>
+                                        <option value="">-- เลือกแพทย์ --</option>
+                                    </select>
+                                    @error('doctor_id')
+                                        <span class="invalid-feedback">{{ $message }}</span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold text-primary" for="date">วันที่ <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control @error('date') is-invalid @enderror" id="date" name="date" min="{{ date('Y-m-d') }}" value="{{ old('date') }}" disabled>
+                                    @error('date')
+                                        <span class="invalid-feedback">{{ $message }}</span>
+                                    @enderror
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold text-primary" for="time_slot_id">ช่วงเวลา <span class="text-danger">*</span></label>
+                                    <select class="form-select @error('time_slot_id') is-invalid @enderror" id="time_slot_id" name="time_slot_id" disabled>
+                                        <option value="">-- เลือกช่วงเวลา --</option>
+                                    </select>
+                                    @error('time_slot_id')
+                                        <span class="invalid-feedback">{{ $message }}</span>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="mb-4">
-                            <label class="form-label" for="time_slot_id">ช่วงเวลา <span class="text-danger">*</span></label>
-                            <select class="form-select @error('time_slot_id') is-invalid @enderror" id="time_slot_id" name="time_slot_id" disabled>
-                                <option value="">-- เลือกช่วงเวลา --</option>
-                            </select>
-                            @error('time_slot_id')
+                            <label class="form-label fw-bold text-primary" for="notes">หมายเหตุ</label>
+                            <textarea class="form-control @error('notes') is-invalid @enderror" id="notes" name="notes" rows="4">{{ old('notes') }}</textarea>
+                            @error('notes')
                                 <span class="invalid-feedback">{{ $message }}</span>
                             @enderror
                         </div>
@@ -185,15 +456,7 @@
                 </div>
                 
                 <div class="mb-4">
-                    <label class="form-label" for="notes">หมายเหตุ</label>
-                    <textarea class="form-control @error('notes') is-invalid @enderror" id="notes" name="notes" rows="4">{{ old('notes') }}</textarea>
-                    @error('notes')
-                        <span class="invalid-feedback">{{ $message }}</span>
-                    @enderror
-                </div>
-                
-                <div class="mb-4">
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-lg btn-primary">
                         <i class="fa fa-check me-1"></i> บันทึกการนัดหมาย
                     </button>
                 </div>

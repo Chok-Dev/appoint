@@ -15,7 +15,13 @@ class Appointment extends Model
         'doctor_id',
         'clinic_id',
         'notes',
-        'status'
+        'status',
+        'patient_cid',
+        'patient_hn',
+        'patient_pname',
+        'patient_fname',
+        'patient_lname',
+        'patient_birthdate',
     ];
 
     public function user()
