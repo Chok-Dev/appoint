@@ -76,7 +76,7 @@ class AppointmentController extends Controller
 
         return view('appointments.create', compact('groups', 'clinics', 'doctors', 'timeSlots'));
     }
-    
+
     public function getClinicsByGroup(Request $request)
     {
         $request->validate([
@@ -134,9 +134,23 @@ class AppointmentController extends Controller
                 }
             }
 
+            // Get holidays from the HIS database
+            $holidaysQuery = DB::connection('pgsql')
+                ->table('holiday')
+                ->whereIn('holiday_date', $formattedDates)
+                ->select('holiday_date', 'day_name');
+
+            $holidays = [];
+            foreach ($holidaysQuery->get() as $holiday) {
+                $holidays[$holiday->holiday_date] = [
+                    'day_name' => $holiday->day_name
+                ];
+            }
+
             return response()->json([
                 'success' => true,
                 'dates' => $formattedDates,
+                'holidays' => $holidays,
                 'message' => empty($availableDates) ? 'ไม่พบวันที่ที่มีช่วงเวลาว่าง กำลังแสดง 7 วันข้างหน้าแทน' : 'พบวันที่ที่มีช่วงเวลาว่าง'
             ]);
         } catch (\Exception $e) {
@@ -152,6 +166,7 @@ class AppointmentController extends Controller
             return response()->json([
                 'success' => false,
                 'dates' => $fallbackDates,
+                'holidays' => [],
                 'message' => 'เกิดข้อผิดพลาดในการดึงข้อมูลวันที่: ' . $e->getMessage() . ' กำลังแสดง 7 วันข้างหน้าแทน'
             ]);
         }
@@ -295,9 +310,10 @@ class AppointmentController extends Controller
         $appointment->load(['timeSlot', 'doctor', 'clinic']);
 
         // ดึงข้อมูลสำหรับการแสดงผล
+        $groups = Group::all(); // เพิ่มการดึงข้อมูลกลุ่มงาน
         $clinics = Clinic::all();
 
-        return view('appointments.edit', compact('appointment', 'clinics'));
+        return view('appointments.edit', compact('appointment', 'groups', 'clinics'));
     }
 
     public function update(Request $request, Appointment $appointment)

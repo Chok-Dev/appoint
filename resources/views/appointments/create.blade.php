@@ -16,6 +16,24 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
+      @if (old('patient_cid'))
+        $('#cid').val("{{ old('patient_cid') }}");
+
+        // ถ้ามีข้อมูลผู้ป่วย แสดงข้อมูลนั้น
+        @if (old('patient_fname') && old('patient_lname'))
+          $('#search-result').html($('#patient-info-display').html());
+          // ซ่อนฟอร์มกรอกข้อมูลผู้ป่วย
+          $('#patient-info-form').hide();
+        @elseif (old('manual_fname') && old('manual_lname'))
+          $('#search-result').html($('#patient-not-found-display').html());
+          // แสดงฟอร์มกรอกข้อมูลผู้ป่วยและตั้งค่าข้อมูลเดิม
+          $('#patient-info-form').show();
+          $('#manual_pname').val("{{ old('manual_pname') }}");
+          $('#manual_fname').val("{{ old('manual_fname') }}");
+          $('#manual_lname').val("{{ old('manual_lname') }}");
+          $('#manual_age').val("{{ old('manual_age') }}");
+        @endif
+      @endif
       // ซ่อนฟอร์มกรอกข้อมูลผู้ป่วยเมื่อโหลดหน้าครั้งแรก
       $('#patient-info-form').hide();
 
@@ -111,6 +129,313 @@
         });
       });
 
+      // เมื่อโหลดหน้าใหม่หลังจาก validation error
+      // ถ้ามีค่า old inputs เราต้องตั้งค่าเริ่มต้นและทำการโหลดข้อมูลที่เกี่ยวข้อง
+
+      $(document).ready(function() {
+
+        // ถ้ามีค่า group_id เดิม
+        @if (old('group_id'))
+          const oldGroupId = {{ old('group_id') }};
+          $('#group_id').val(oldGroupId);
+
+          // โหลดคลินิกที่อยู่ในกลุ่มงานนี้
+          if (oldGroupId) {
+            $('#clinic-loading').show();
+
+            $.ajax({
+              url: "{{ route('get.clinics.by.group') }}",
+              type: "GET",
+              dataType: "json",
+              data: {
+                group_id: oldGroupId
+              },
+              success: function(data) {
+                $('#clinic-loading').hide();
+
+                if (data && data.length > 0) {
+                  $('#clinic_id').empty().append('<option value="">-- เลือกคลินิก --</option>');
+
+                  $.each(data, function(key, value) {
+                    $('#clinic_id').append('<option value="' + value.id + '">' + value.name +
+                      '</option>');
+                  });
+
+                  $('#clinic_id').prop('disabled', false);
+
+                  // ถ้ามีค่า clinic_id เดิม
+                  @if (old('clinic_id'))
+                    $('#clinic_id').val({{ old('clinic_id') }});
+
+                    // โหลดแพทย์ที่อยู่ในคลินิกนี้
+                    const oldClinicId = {{ old('clinic_id') }};
+                    $('#doctor-loading').show();
+
+                    $.ajax({
+                      url: "{{ route('get.doctors') }}",
+                      type: "GET",
+                      dataType: "json",
+                      data: {
+                        clinic_id: oldClinicId
+                      },
+                      success: function(docData) {
+                        $('#doctor-loading').hide();
+
+                        if (docData && docData.length > 0) {
+                          $('#doctor_id').empty().append(
+                            '<option value="">-- เลือกแพทย์ --</option>');
+
+                          $.each(docData, function(key, value) {
+                            $('#doctor_id').append('<option value="' + value.id + '">' + value
+                              .name + '</option>');
+                          });
+
+                          $('#doctor_id').prop('disabled', false);
+
+                          // ถ้ามีค่า doctor_id เดิม
+                          @if (old('doctor_id'))
+                            $('#doctor_id').val({{ old('doctor_id') }});
+
+                            // โหลดวันที่ที่มีช่วงเวลาว่าง
+                            const oldDoctorId = {{ old('doctor_id') }};
+                            $('#date-loading').show();
+
+                            $.ajax({
+                              url: "{{ route('get.available.dates') }}",
+                              type: "GET",
+                              dataType: "json",
+                              data: {
+                                clinic_id: oldClinicId,
+                                doctor_id: oldDoctorId
+                              },
+                              success: function(response) {
+                                $('#date-loading').hide();
+
+                                const availableDates = response.dates || [];
+                                const holidays = response.holidays || {};
+
+                                if (availableDates && availableDates.length > 0) {
+                                  // สร้าง datepicker
+                                  $('#date').daterangepicker({
+                                    "singleDatePicker": true,
+                                    opens: 'center',
+                                    "minDate": moment().format('YYYY-MM-DD'),
+                                    "locale": {
+                                      "format": "YYYY-MM-DD",
+                                      "separator": "-",
+                                      "applyLabel": "ตกลง",
+                                      "cancelLabel": "ยกเลิก",
+                                      "fromLabel": "จาก",
+                                      "toLabel": "ถึง",
+                                      "customRangeLabel": "Custom",
+                                      "daysOfWeek": [
+                                        "อา.", "จ.", "อ.", "พุธ.", "พฤ.", "ศ.", "ส."
+                                      ],
+                                      "monthNames": [
+                                        "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+                                        "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
+                                      ],
+                                      "firstDay": 1
+                                    },
+                                    isInvalidDate: function(date) {
+                                      const formattedDate = date.format('YYYY-MM-DD');
+                                      return !availableDates.includes(formattedDate);
+                                    },
+                                    isCustomDate: function(date) {
+                                      const formattedDate = date.format('YYYY-MM-DD');
+                                      if (holidays[formattedDate]) {
+                                        return ['holiday',
+                                          'available'
+                                        ]; // CSS class สำหรับวันหยุด
+                                      }
+                                      return availableDates.includes(formattedDate) ?
+                                        'available' : '';
+                                    }
+                                  });
+
+                                  // เพิ่ม CSS สำหรับวันหยุด
+                                  $('<style>')
+                                    .text(
+                                      '.holiday { background-color: #ffdddd !important; color: #ff0000 !important; }'
+                                    )
+                                    .appendTo('head');
+
+                                  $('#date').prop('disabled', false);
+
+                                  // ถ้ามีค่า date เดิม
+                                  @if (old('date'))
+                                    $('#date').val("{{ old('date') }}");
+
+                                    // ตรวจสอบว่าวันที่ปัจจุบันเป็นวันหยุดหรือไม่
+                                    const currentDate = "{{ old('date') }}";
+                                    if (holidays[currentDate]) {
+                                      $('#date-holiday-warning').remove(); // ลบข้อความเดิมถ้ามี
+                                      $(`<div id="date-holiday-warning" class="alert alert-warning mt-2">
+                                                                        <i class="fa fa-exclamation-triangle me-1"></i> วันที่คุณเลือกเป็นวันหยุด: ${holidays[currentDate].day_name}
+                                                                    </div>`).insertAfter('#date');
+                                    }
+
+                                    // โหลดช่วงเวลาสำหรับวันที่เดิม
+                                    const oldDate = "{{ old('date') }}";
+                                    $('#time-loading').show();
+
+                                    $.ajax({
+                                      url: "{{ route('get.timeslots') }}",
+                                      type: "GET",
+                                      dataType: "json",
+                                      data: {
+                                        clinic_id: oldClinicId,
+                                        doctor_id: oldDoctorId,
+                                        date: oldDate
+                                      },
+                                      success: function(timeData) {
+                                        $('#time-loading').hide();
+
+                                        $('#time_slot_id').empty().append(
+                                          '<option value="">-- เลือกช่วงเวลา --</option>'
+                                        );
+
+                                        if (timeData && timeData.length > 0) {
+                                          $.each(timeData, function(key, timeSlot) {
+                                            let startTime = timeSlot.start_time
+                                              .substr(0, 5);
+                                            let endTime = timeSlot.end_time.substr(0,
+                                              5);
+                                            let availableSlots = timeSlot
+                                              .max_appointments - timeSlot
+                                              .booked_appointments;
+
+                                            $('#time_slot_id').append(
+                                              '<option value="' + timeSlot.id +
+                                              '">' + startTime + ' - ' + endTime +
+                                              ' (ว่าง ' + availableSlots +
+                                              ' คิว)</option>');
+                                          });
+
+                                          $('#time_slot_id').prop('disabled', false);
+
+                                          // ถ้ามีค่า time_slot_id เดิม
+                                          @if (old('time_slot_id'))
+                                            $('#time_slot_id').val(
+                                              {{ old('time_slot_id') }});
+                                          @endif
+                                        } else {
+                                          $('#time_slot_id').append(
+                                            '<option disabled>ไม่พบช่วงเวลาที่ว่าง</option>'
+                                          );
+                                          $('#time_slot_id').prop('disabled', true);
+                                          $('#time-message').html(
+                                            `<div class="alert alert-warning mt-2">ไม่พบช่วงเวลาที่ว่างในวันที่ ${oldDate}</div>`
+                                          ).show();
+                                        }
+                                      },
+                                      error: function(xhr, status, error) {
+                                        $('#time-loading').hide();
+                                        console.error('AJAX error:', error, xhr);
+                                        $('#time-message').html(
+                                          `<div class="alert alert-danger mt-2">เกิดข้อผิดพลาดในการโหลดข้อมูลช่วงเวลา: ${error}</div>`
+                                        ).show();
+                                      }
+                                    });
+                                  @endif
+
+                                  // ตั้งค่า event สำหรับเมื่อเลือกวันที่
+                                  $('#date').on('apply.daterangepicker', function(ev, picker) {
+                                    const selectedDate = picker.startDate.format(
+                                      'YYYY-MM-DD');
+
+                                    if (holidays[selectedDate]) {
+                                      $('#date-holiday-warning').remove();
+                                      $(`<div id="date-holiday-warning" class="alert alert-warning mt-2">
+                                                                        <i class="fa fa-exclamation-triangle me-1"></i> วันที่คุณเลือกเป็นวันหยุด: ${holidays[selectedDate].day_name}
+                                                                    </div>`).insertAfter('#date');
+                                    } else {
+                                      $('#date-holiday-warning').remove();
+                                    }
+
+                                    checkForTimeSlots();
+                                  });
+                                }
+                              },
+                              error: function(xhr, status, error) {
+                                $('#date-loading').hide();
+                                console.error('AJAX error:', error, xhr);
+                              }
+                            });
+                          @endif
+                        }
+                      },
+                      error: function(xhr, status, error) {
+                        $('#doctor-loading').hide();
+                        console.error('AJAX error:', error, xhr);
+                      }
+                    });
+                  @endif
+                }
+              },
+              error: function(xhr, status, error) {
+                $('#clinic-loading').hide();
+                console.error('AJAX error:', error, xhr);
+              }
+            });
+          }
+        @endif
+      });
+
+      // เมื่อกลุ่มงานถูกเลือก ให้โหลดคลินิกที่เกี่ยวข้อง
+      $('#group_id').change(function() {
+        const groupId = $(this).val();
+
+        // รีเซ็ตค่าเดิม
+        $('#clinic_id').empty().append('<option value="">-- เลือกคลินิก --</option>').prop('disabled', true);
+        $('#doctor_id').empty().append('<option value="">-- เลือกแพทย์ --</option>').prop('disabled', true);
+        $('#date').val('').prop('disabled', true);
+        $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>').prop('disabled', true);
+
+        if (groupId) {
+          // แสดง loading spinner
+          $('#clinic-loading').show();
+
+          // ส่ง AJAX เพื่อดึงข้อมูลคลินิกที่อยู่ในกลุ่มงานนี้
+          $.ajax({
+            url: "{{ route('get.clinics.by.group') }}",
+            type: "GET",
+            dataType: "json",
+            data: {
+              group_id: groupId
+            },
+            success: function(data) {
+              $('#clinic-loading').hide();
+              console.log('Clinics data:', data);
+
+              if (data && data.length > 0) {
+                // เคลียร์และเพิ่มตัวเลือกเริ่มต้น
+                $('#clinic_id').empty().append('<option value="">-- เลือกคลินิก --</option>');
+
+                // เพิ่มตัวเลือกคลินิกจากข้อมูลที่ได้
+                $.each(data, function(key, value) {
+                  $('#clinic_id').append('<option value="' + value.id + '">' + value.name +
+                    '</option>');
+                });
+
+                // เปิดใช้งาน dropdown คลินิก
+                $('#clinic_id').prop('disabled', false);
+              } else {
+                // กรณีไม่พบคลินิกในกลุ่มงานนี้
+                $('#clinic_id').append('<option disabled>ไม่พบคลินิกในกลุ่มงานนี้</option>');
+              }
+            },
+            error: function(xhr, status, error) {
+              // กรณีเกิดข้อผิดพลาดในการเรียก API
+              $('#clinic-loading').hide();
+              console.error('AJAX error:', error, xhr);
+              $('#clinic_id').empty().append(
+                '<option value="">-- เกิดข้อผิดพลาดในการโหลดข้อมูล --</option>');
+            }
+          });
+        }
+      });
+
       // เมื่อคลินิกถูกเลือก ให้โหลดแพทย์ที่เกี่ยวข้อง
       $('#clinic_id').change(function() {
         const clinicId = $(this).val();
@@ -165,67 +490,7 @@
           $('#time_slot_id').prop('disabled', true);
         }
       });
-      $('#group_id').change(function() {
-        const groupId = $(this).val();
 
-        // รีเซ็ตค่าเดิม
-        $('#clinic_id').empty().append('<option value="">-- เลือกคลินิก --</option>').prop('disabled', true);
-        $('#doctor_id').empty().append('<option value="">-- เลือกแพทย์ --</option>').prop('disabled', true);
-        $('#date').val('').prop('disabled', true);
-        $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>').prop('disabled', true);
-
-        if (groupId) {
-          // แสดง loading spinner
-          $('#clinic-loading').show();
-
-          // ส่ง AJAX เพื่อดึงข้อมูลคลินิกที่อยู่ในกลุ่มงานนี้
-          $.ajax({
-            url: "{{ route('get.clinics.by.group') }}",
-            type: "GET",
-            dataType: "json",
-            data: {
-              group_id: groupId
-            },
-            success: function(data) {
-              $('#clinic-loading').hide();
-              console.log('Clinics data:', data);
-
-              if (data && data.length > 0) {
-                // เคลียร์และเพิ่มตัวเลือกเริ่มต้น
-                $('#clinic_id').empty().append('<option value="">-- เลือกคลินิก --</option>');
-
-                // เพิ่มตัวเลือกคลินิกจากข้อมูลที่ได้
-                $.each(data, function(key, value) {
-                  $('#clinic_id').append('<option value="' + value.id + '">' + value.name +
-                    '</option>');
-                });
-
-                // เปิดใช้งาน dropdown คลินิก
-                $('#clinic_id').prop('disabled', false);
-
-                // ถ้ามีค่าเดิม (จาก validation error) ให้เลือกค่านั้น
-                @if (old('clinic_id'))
-                  $('#clinic_id').val("{{ old('clinic_id') }}");
-                  // ถ้ามีการเลือกคลินิกอยู่แล้ว ให้ trigger การเปลี่ยนแปลงเพื่อโหลดแพทย์
-                  if ($('#clinic_id').val()) {
-                    $('#clinic_id').trigger('change');
-                  }
-                @endif
-              } else {
-                // กรณีไม่พบคลินิกในกลุ่มงานนี้
-                $('#clinic_id').append('<option disabled>ไม่พบคลินิกในกลุ่มงานนี้</option>');
-              }
-            },
-            error: function(xhr, status, error) {
-              // กรณีเกิดข้อผิดพลาดในการเรียก API
-              $('#clinic-loading').hide();
-              console.error('AJAX error:', error, xhr);
-              $('#clinic_id').empty().append(
-                '<option value="">-- เกิดข้อผิดพลาดในการโหลดข้อมูล --</option>');
-            }
-          });
-        }
-      });
       // เมื่อแพทย์ถูกเลือก
       $('#doctor_id').change(function() {
         // รีเซ็ตค่าเวลาและวันที่
@@ -265,6 +530,7 @@
               }
 
               const availableDates = response.dates || [];
+              const holidays = response.holidays || {};
 
               // ตรวจสอบว่ามีวันที่ให้เลือกหรือไม่
               if (availableDates && availableDates.length > 0) {
@@ -297,13 +563,38 @@
                     // ตรวจสอบว่าวันที่นี้อยู่ในรายการวันที่ที่มี time slots ว่างหรือไม่
                     // ถ้าไม่มีในรายการ = invalid date (คืนค่า true)
                     return !availableDates.includes(formattedDate);
+                  },
+                  // ใช้ isCustomDate เพื่อแสดงวันหยุดด้วยสีที่แตกต่าง
+                  isCustomDate: function(date) {
+                    const formattedDate = date.format('YYYY-MM-DD');
+                    if (holidays[formattedDate]) {
+                      return ['holiday', 'available']; // CSS class สำหรับวันหยุด
+                    }
+                    return availableDates.includes(formattedDate) ? 'available' : '';
                   }
                 });
+
+                // เพิ่ม CSS สำหรับวันหยุด
+                $('<style>')
+                  .text('.holiday { background-color: #ffdddd !important; color: #ff0000 !important; }')
+                  .appendTo('head');
 
                 $('#date').prop('disabled', false);
 
                 // เมื่อเลือกวันที่
                 $('#date').on('apply.daterangepicker', function(ev, picker) {
+                  const selectedDate = picker.startDate.format('YYYY-MM-DD');
+
+                  // แสดงข้อความแจ้งเตือนถ้าเป็นวันหยุด
+                  if (holidays[selectedDate]) {
+                    $('#date-holiday-warning').remove(); // ลบข้อความเดิมถ้ามี
+                    $(`<div id="date-holiday-warning" class="alert alert-warning mt-2">
+                    <i class="fa fa-exclamation-triangle me-1"></i> วันที่คุณเลือกเป็นวันหยุด: ${holidays[selectedDate].day_name}
+                  </div>`).insertAfter('#date');
+                  } else {
+                    $('#date-holiday-warning').remove();
+                  }
+
                   checkForTimeSlots();
                 });
               } else {
@@ -434,7 +725,27 @@
                 </div>
               </div>
             </div>
+            <div id="patient-info-display" style="display: none;">
+              <div class="alert alert-success">
+                <h5>ข้อมูลผู้ป่วย @if (old('patient_hn'))
+                    HN: {{ old('patient_hn') }}
+                  @endif
+                </h5>
+                <p>
+                  ชื่อ-นามสกุล: {{ old('patient_pname') }} {{ old('patient_fname') }} {{ old('patient_lname') }}<br>
+                  @if (old('patient_age'))
+                    อายุ: {{ old('patient_age') }} ปี
+                  @endif
+                </p>
+              </div>
+            </div>
 
+            <div id="patient-not-found-display" style="display: none;">
+              <div class="alert alert-warning">
+                <h5>ไม่พบข้อมูลผู้ป่วย</h5>
+                <p>กรุณากรอกข้อมูลผู้ป่วยด้านล่าง</p>
+              </div>
+            </div>
             <!-- ผลการค้นหาผู้ป่วย -->
             <div id="search-result" class="mb-4">
               <!-- ผลการค้นหาจะถูกแสดงที่นี่ -->
