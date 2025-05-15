@@ -74,7 +74,7 @@ Route::middleware(['auth'])->group(function () {
     });
     
     // Appointment routes
-    Route::get('/get-holidays', [AppointmentController::class, 'getHolidays'])->name('get.holidays');
+    
     Route::get('/get-clinics-by-group', [AppointmentController::class, 'getClinicsByGroup'])->name('get.clinics.by.group');
     Route::get('/get-available-dates', [AppointmentController::class, 'getAvailableDates'])->name('get.available.dates');
     Route::get('/search-patient', [AppointmentController::class, 'searchPatient'])->name('search.patient');
