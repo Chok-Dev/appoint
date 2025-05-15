@@ -85,11 +85,11 @@
                                     <div class="block-content">
                                         <div class="form-floating mb-4">
                                             <input type="text"
-                                                class="form-control  @error('email') is-invalid  @enderror "
-                                                id="email" name="email" placeholder="Enter your email"
-                                                value="{{ old('email') }}">
-                                            <label class="form-label" for="email">Email</label>
-                                            @error('email')
+                                                class="form-control  @error('name') is-invalid  @enderror "
+                                                id="name" name="name" placeholder="Enter your name"
+                                                value="{{ old('name') }}">
+                                            <label class="form-label" for="name">Username</label>
+                                            @error('name')
                                                 <span class="invalid-feedback" role="alert">
                                                     <strong>{{ $message }}</strong>
                                                 </span>

@@ -1,3 +1,4 @@
+```php
 @extends('layouts.backend')
 
 @section('css')
@@ -22,6 +23,9 @@
                 $('#date').val('').prop('disabled', true);
                 $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>').prop('disabled', true);
                 
+                // แสดง loading spinner
+                $('#doctor-loading').show();
+                
                 // ใช้ AJAX แบบ jQuery
                 $.ajax({
                     url: "{{ route('get.doctors') }}",
@@ -31,6 +35,7 @@
                         clinic_id: clinicId
                     },
                     success: function(data) {
+                        $('#doctor-loading').hide();
                         console.log('Doctors data:', data);
                         $('#doctor_id').empty().append('<option value="">-- เลือกแพทย์ --</option>');
                         
@@ -55,6 +60,7 @@
                         }
                     },
                     error: function(xhr, status, error) {
+                        $('#doctor-loading').hide();
                         console.error('AJAX error:', error, xhr);
                         $('#doctor_id').empty().append('<option value="">-- เกิดข้อผิดพลาดในการโหลดข้อมูล --</option>');
                         $('#doctor_id').prop('disabled', true);
@@ -71,7 +77,7 @@
         });
         
         // เมื่อแพทย์ถูกเลือก
-        $('#doctor_id').change(function() {
+                        $('#doctor_id').change(function() {
             // รีเซ็ตค่าเวลาและวันที่
             $('#date').val('').prop('disabled', true);
             $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>').prop('disabled', true);
@@ -80,6 +86,10 @@
             const doctorId = $(this).val();
             
             if (clinicId && doctorId) {
+                // แสดง loading
+                $('#date-loading').show();
+                $('#date-message').hide();
+                
                 // ใช้ AJAX เพื่อดึงวันที่ที่มีช่วงเวลาว่าง
                 $.ajax({
                     url: "{{ route('get.available.dates') }}",
@@ -89,8 +99,20 @@
                         clinic_id: clinicId,
                         doctor_id: doctorId
                     },
-                    success: function(availableDates) {
-                        console.log('Available dates:', availableDates);
+                    success: function(response) {
+                        $('#date-loading').hide();
+                        console.log('Available dates response:', response);
+                        
+                        // แสดงข้อความแจ้งเตือนถ้ามี
+                        if (response.message && !response.success) {
+                            $('#date-message').html(`<div class="alert alert-warning mt-2">${response.message}</div>`).show();
+                        } else if (response.message) {
+                            $('#date-message').html(`<div class="alert alert-info mt-2">${response.message}</div>`).show();
+                        } else {
+                            $('#date-message').hide();
+                        }
+                        
+                        const availableDates = response.dates || [];
                         
                         // กรณีที่เป็นการแก้ไข ให้เพิ่มวันที่ปัจจุบันเข้าไปด้วย
                         @if(old('date', $appointment->timeSlot->date))
@@ -101,11 +123,13 @@
                             }
                         @endif
                         
+                        // ตรวจสอบว่ามีวันที่ให้เลือกหรือไม่
                         if (availableDates && availableDates.length > 0) {
-                            // สร้าง datepicker with available dates
+                            // สร้าง datepicker และจำกัดให้เลือกได้เฉพาะวันที่มี time slots ว่าง
                             $('#date').daterangepicker({
                                 "singleDatePicker": true,
                                 opens: 'center',
+                                "minDate": moment().format('YYYY-MM-DD'), // ไม่ให้เลือกวันที่ผ่านมาแล้ว
                                 "locale": {
                                     "format": "YYYY-MM-DD",
                                     "separator": "-",
@@ -123,9 +147,13 @@
                                     ],
                                     "firstDay": 1
                                 },
+                                // ฟังก์ชันสำคัญที่ใช้ในการจำกัดวันที่ที่ผู้ใช้สามารถเลือกได้
                                 isInvalidDate: function(date) {
-                                    // ตรวจสอบว่าวันที่อยู่ในวันที่มีให้เลือกหรือไม่
-                                    return !availableDates.includes(date.format('YYYY-MM-DD'));
+                                    // แปลง date object เป็น string format 'YYYY-MM-DD'
+                                    const formattedDate = date.format('YYYY-MM-DD');
+                                    // ตรวจสอบว่าวันที่นี้อยู่ในรายการวันที่ที่มี time slots ว่างหรือไม่
+                                    // ถ้าไม่มีในรายการ = invalid date (คืนค่า true)
+                                    return !availableDates.includes(formattedDate);
                                 }
                             });
                             
@@ -146,12 +174,14 @@
                                 checkForTimeSlots();
                             }
                         } else {
-                            alert('ไม่พบวันที่ว่างสำหรับแพทย์และคลินิกที่เลือก');
+                            // กรณีไม่มีวันที่ให้เลือก
+                            $('#date-message').html(`<div class="alert alert-danger mt-2">ไม่พบวันที่ที่มีช่วงเวลาว่าง</div>`).show();
                         }
                     },
                     error: function(xhr, status, error) {
+                        $('#date-loading').hide();
                         console.error('AJAX error:', error, xhr);
-                        alert('เกิดข้อผิดพลาดในการดึงข้อมูลวันที่');
+                        $('#date-message').html(`<div class="alert alert-danger mt-2">เกิดข้อผิดพลาดในการดึงข้อมูลวันที่: ${error}</div>`).show();
                     }
                 });
             }
@@ -164,6 +194,11 @@
             const date = $('#date').val();
             
             if (clinicId && doctorId && date) {
+                // แสดง loading
+                $('#time-loading').show();
+                $('#time_slot_id').prop('disabled', true);
+                $('#time-message').hide();
+                
                 // ใช้ AJAX แบบ jQuery
                 $.ajax({
                     url: "{{ route('get.timeslots') }}",
@@ -175,6 +210,7 @@
                         date: date
                     },
                     success: function(data) {
+                        $('#time-loading').hide();
                         console.log('TimeSlots data:', data);
                         $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>');
                         
@@ -215,24 +251,131 @@
                             // ถ้าไม่มีช่วงเวลาใหม่และไม่มีช่วงเวลาปัจจุบัน
                             $('#time_slot_id').append('<option disabled>ไม่พบช่วงเวลาที่ว่าง</option>');
                             $('#time_slot_id').prop('disabled', true);
+                            $('#time-message').html(`<div class="alert alert-warning mt-2">ไม่พบช่วงเวลาที่ว่างในวันที่ ${date}</div>`).show();
                         }
                     },
                     error: function(xhr, status, error) {
+                        $('#time-loading').hide();
                         console.error('AJAX error:', error, xhr);
                         $('#time_slot_id').empty().append('<option value="">-- เกิดข้อผิดพลาดในการโหลดข้อมูล --</option>');
                         $('#time_slot_id').prop('disabled', true);
+                        $('#time-message').html(`<div class="alert alert-danger mt-2">เกิดข้อผิดพลาดในการโหลดข้อมูลช่วงเวลา: ${error}</div>`).show();
                     }
                 });
             } else {
                 $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>');
                 $('#time_slot_id').prop('disabled', true);
+                $('#time-message').hide();
             }
         }
+        
+        // แสดงข้อมูลผู้ป่วยเดิม
+        $('#search-result').html(`
+            <div class="alert alert-success">
+                <h5>ข้อมูลผู้ป่วย</h5>
+                <p>
+                    ชื่อ-นามสกุล: {{ $appointment->patient_pname }} {{ $appointment->patient_fname }} {{ $appointment->patient_lname }}<br>
+                    เลขบัตรประชาชน: {{ $appointment->patient_cid }}<br>
+                    HN: {{ $appointment->patient_hn ?? 'ไม่มีข้อมูล' }}<br>
+                    อายุ: {{ $appointment->patient_age ?? 'ไม่มีข้อมูล' }} ปี
+                </p>
+            </div>
+        `);
         
         // เรียกฟังก์ชันตอนโหลดหน้าเพื่อโหลดแพทย์และช่วงเวลา
         if ($('#clinic_id').val()) {
             $('#clinic_id').trigger('change');
         }
+        
+        // ปุ่มค้นหาผู้ป่วย
+        $('#search-patient-btn').click(function() {
+            const cid = $('#cid').val();
+            if (!cid) {
+                alert('กรุณากรอกเลขบัตรประชาชน');
+                return;
+            }
+            
+            // แสดง loading
+            $('#search-result').html('<div class="d-flex justify-content-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>');
+            
+            // ส่ง AJAX request เพื่อค้นหาข้อมูลผู้ป่วย
+            $.ajax({
+                url: "{{ route('search.patient') }}",
+                type: "GET",
+                dataType: "json",
+                data: {
+                    cid: cid
+                },
+                success: function(response) {
+                    if (response.success && response.data.length > 0) {
+                        // พบข้อมูลผู้ป่วย
+                        const patient = response.data[0];
+                        
+                        // คำนวณอายุ
+                        let age = '';
+                        if (patient.birthdate) {
+                            age = moment().diff(moment(patient.birthdate), 'years');
+                        } else {
+                            age = 'ไม่มีข้อมูล';
+                        }
+                        
+                        // แสดงข้อมูลผู้ป่วยที่พบ
+                        let patientInfo = `
+                            <div class="alert alert-success">
+                                <h5>พบข้อมูลผู้ป่วย HN: ${patient.patient_hn || 'ไม่มีข้อมูล'}</h5>
+                                <p>
+                                    ชื่อ-นามสกุล: ${patient.pname} ${patient.fname} ${patient.lname}<br>
+                                    อายุ: ${age} ปี
+                                </p>
+                            </div>
+                        `;
+                        $('#search-result').html(patientInfo);
+                        
+                        // เก็บข้อมูลผู้ป่วยใน hidden fields
+                        $('#patient_cid').val(patient.cid);
+                        $('#patient_hn').val(patient.patient_hn || '');
+                        $('#patient_pname').val(patient.pname || '');
+                        $('#patient_fname').val(patient.fname || '');
+                        $('#patient_lname').val(patient.lname || '');
+                        $('#patient_birthdate').val(patient.birthdate || '');
+                        $('#patient_age').val(age !== 'ไม่มีข้อมูล' ? age : '');
+                        
+                        // ซ่อนฟอร์มกรอกข้อมูลผู้ป่วย
+                        $('#patient-info-form').hide();
+                    } else {
+                        // ไม่พบข้อมูลผู้ป่วย
+                        $('#search-result').html(`
+                            <div class="alert alert-warning">
+                                <h5>ไม่พบข้อมูลผู้ป่วย</h5>
+                                <p>กรุณากรอกข้อมูลผู้ป่วยด้านล่าง</p>
+                            </div>
+                        `);
+                        
+                        // แสดงฟอร์มกรอกข้อมูลผู้ป่วย
+                        $('#patient-info-form').show();
+                        
+                        // เก็บ cid ที่ค้นหาใน hidden field
+                        $('#patient_cid').val(cid);
+                        $('#manual_pname').val('');
+                        $('#manual_fname').val('');
+                        $('#manual_lname').val('');
+                        $('#manual_age').val('');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX error:', error, xhr);
+                    $('#search-result').html(`
+                        <div class="alert alert-danger">
+                            <h5>เกิดข้อผิดพลาดในการค้นหา</h5>
+                            <p>${error}</p>
+                        </div>
+                    `);
+                    
+                    // แสดงฟอร์มกรอกข้อมูลผู้ป่วย
+                    $('#patient-info-form').show();
+                }
+            });
+        });
     });
 </script>
 @endsection
@@ -267,33 +410,62 @@
                     <h3 class="block-title text-white">ข้อมูลผู้ป่วย</h3>
                 </div>
                 <div class="block-content">
-                    <div class="table-responsive">
-                        <table class="table table-bordered">
-                            <tr>
-                                <th style="width: 30%;">ชื่อ-นามสกุล</th>
-                                <td>{{ $appointment->patient_pname }} {{ $appointment->patient_fname }} {{ $appointment->patient_lname }}</td>
-                            </tr>
-                            <tr>
-                                <th>เลขบัตรประชาชน</th>
-                                <td>{{ $appointment->patient_cid }}</td>
-                            </tr>
-                            <tr>
-                                <th>HN</th>
-                                <td>{{ $appointment->patient_hn ?? '-' }}</td>
-                            </tr>
-                            <tr>
-                                <th>อายุ</th>
-                                <td>
-                                    @if($appointment->patient_birthdate)
-                                        {{ \Carbon\Carbon::parse($appointment->patient_birthdate)->age }} ปี
-                                    @elseif($appointment->patient_age)
-                                        {{ $appointment->patient_age }} ปี
-                                    @else
-                                        -
-                                    @endif
-                                </td>
-                            </tr>
-                        </table>
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <div class="mb-4">
+                                <label class="form-label fw-bold text-primary" for="cid">เลขบัตรประชาชน <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="cid" name="cid" placeholder="กรอกเลขบัตรประชาชน 13 หลัก" maxlength="13" value="{{ $appointment->patient_cid }}">
+                                    <button type="button" class="btn btn-primary" id="search-patient-btn">
+                                        <i class="fa fa-search me-1"></i> ค้นหา
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ผลการค้นหาผู้ป่วย -->
+                    <div id="search-result" class="mb-4">
+                        <!-- ผลการค้นหาจะถูกแสดงที่นี่ด้วย JavaScript -->
+                    </div>
+                    
+                    <!-- ฟอร์มกรอกข้อมูลผู้ป่วย (กรณีไม่พบข้อมูล) -->
+                    <div id="patient-info-form" style="display: none;">
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold text-primary" for="manual_pname">คำนำหน้า <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="manual_pname" name="manual_pname">
+                                        <option value="">-- เลือกคำนำหน้า --</option>
+                                        <option value="นาย" {{ old('manual_pname') == 'นาย' ? 'selected' : '' }}>นาย</option>
+                                        <option value="นาง" {{ old('manual_pname') == 'นาง' ? 'selected' : '' }}>นาง</option>
+                                        <option value="นางสาว" {{ old('manual_pname') == 'นางสาว' ? 'selected' : '' }}>นางสาว</option>
+                                        <option value="เด็กชาย" {{ old('manual_pname') == 'เด็กชาย' ? 'selected' : '' }}>เด็กชาย</option>
+                                        <option value="เด็กหญิง" {{ old('manual_pname') == 'เด็กหญิง' ? 'selected' : '' }}>เด็กหญิง</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold text-primary" for="manual_fname">ชื่อ <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="manual_fname" name="manual_fname" value="{{ old('manual_fname') }}">
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold text-primary" for="manual_lname">นามสกุล <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="manual_lname" name="manual_lname" value="{{ old('manual_lname') }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold text-primary" for="manual_age">อายุ (ปี) <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" id="manual_age" name="manual_age" min="0" max="120" value="{{ old('manual_age') }}">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -303,13 +475,13 @@
                 @method('PUT')
                 
                 <!-- Hidden fields สำหรับเก็บข้อมูลผู้ป่วย -->
-                <input type="hidden" name="patient_cid" value="{{ $appointment->patient_cid }}">
-                <input type="hidden" name="patient_hn" value="{{ $appointment->patient_hn }}">
-                <input type="hidden" name="patient_pname" value="{{ $appointment->patient_pname }}">
-                <input type="hidden" name="patient_fname" value="{{ $appointment->patient_fname }}">
-                <input type="hidden" name="patient_lname" value="{{ $appointment->patient_lname }}">
-                <input type="hidden" name="patient_birthdate" value="{{ $appointment->patient_birthdate }}">
-                <input type="hidden" name="patient_age" value="{{ $appointment->patient_age }}">
+                <input type="hidden" id="patient_cid" name="patient_cid" value="{{ $appointment->patient_cid }}">
+                <input type="hidden" id="patient_hn" name="patient_hn" value="{{ $appointment->patient_hn }}">
+                <input type="hidden" id="patient_pname" name="patient_pname" value="{{ $appointment->patient_pname }}">
+                <input type="hidden" id="patient_fname" name="patient_fname" value="{{ $appointment->patient_fname }}">
+                <input type="hidden" id="patient_lname" name="patient_lname" value="{{ $appointment->patient_lname }}">
+                <input type="hidden" id="patient_birthdate" name="patient_birthdate" value="{{ $appointment->patient_birthdate }}">
+                <input type="hidden" id="patient_age" name="patient_age" value="{{ $appointment->patient_age }}">
                 
                 <!-- ข้อมูลการนัดหมาย -->
                 <div class="block block-rounded mb-4">
@@ -332,6 +504,12 @@
                                     @error('clinic_id')
                                         <span class="invalid-feedback">{{ $message }}</span>
                                     @enderror
+                                    <div id="doctor-loading" class="mt-2" style="display: none;">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <small class="text-muted ms-1">กำลังโหลดข้อมูลแพทย์...</small>
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -352,22 +530,36 @@
                             <div class="col-md-6">
                                 <div class="mb-4">
                                     <label class="form-label fw-bold text-primary" for="date">วันที่ <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control @error('date') is-invalid @enderror" id="date" name="date" value="{{ old('date', $appointment->timeSlot->date) }}">
+                                    <input type="text" class="form-control @error('date') is-invalid @enderror" id="date" name="date" value="{{ old('date', $appointment->timeSlot->date) }}" disabled>
                                     @error('date')
                                         <span class="invalid-feedback">{{ $message }}</span>
                                     @enderror
+                                    <div id="date-loading" class="mt-2" style="display: none;">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <small class="text-muted ms-1">กำลังโหลดข้อมูลวันที่...</small>
+                                    </div>
+                                    <div id="date-message" class="mt-2" style="display: none;"></div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-4">
                                     <label class="form-label fw-bold text-primary" for="time_slot_id">ช่วงเวลา <span class="text-danger">*</span></label>
-                                    <select class="form-select @error('time_slot_id') is-invalid @enderror" id="time_slot_id" name="time_slot_id">
+                                    <select class="form-select @error('time_slot_id') is-invalid @enderror" id="time_slot_id" name="time_slot_id" disabled>
                                         <option value="">-- เลือกช่วงเวลา --</option>
                                         <!-- ช่วงเวลาจะถูกโหลดผ่าน AJAX -->
                                     </select>
                                     @error('time_slot_id')
                                         <span class="invalid-feedback">{{ $message }}</span>
                                     @enderror
+                                    <div id="time-loading" class="mt-2" style="display: none;">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <small class="text-muted ms-1">กำลังโหลดข้อมูลช่วงเวลา...</small>
+                                    </div>
+                                    <div id="time-message" class="mt-2" style="display: none;"></div>
                                 </div>
                             </div>
                         </div>

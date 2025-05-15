@@ -1,3 +1,4 @@
+```php
 @extends('layouts.backend')
 
 @section('css')
@@ -198,7 +199,7 @@
                         
                         // ตรวจสอบว่ามีวันที่ให้เลือกหรือไม่
                         if (availableDates && availableDates.length > 0) {
-                            // สร้าง datepicker ปกติ (ไม่ใช้ isInvalidDate)
+                            // สร้าง datepicker และจำกัดให้เลือกได้เฉพาะวันที่มี time slots ว่าง
                             $('#date').daterangepicker({
                                 "singleDatePicker": true,
                                 opens: 'center',
@@ -219,6 +220,14 @@
                                         "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."
                                     ],
                                     "firstDay": 1
+                                },
+                                // ฟังก์ชันสำคัญที่ใช้ในการจำกัดวันที่ที่ผู้ใช้สามารถเลือกได้
+                                isInvalidDate: function(date) {
+                                    // แปลง date object เป็น string format 'YYYY-MM-DD'
+                                    const formattedDate = date.format('YYYY-MM-DD');
+                                    // ตรวจสอบว่าวันที่นี้อยู่ในรายการวันที่ที่มี time slots ว่างหรือไม่
+                                    // ถ้าไม่มีในรายการ = invalid date (คืนค่า true)
+                                    return !availableDates.includes(formattedDate);
                                 }
                             });
                             

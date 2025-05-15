@@ -1,3 +1,4 @@
+
 @extends('layouts.backend')
 
 @section('css')
@@ -148,12 +149,22 @@
                 </div>
                 <!-- END Filter Form -->
 
-                @if ($timeSlots->isEmpty())
+                @php
+                    // กรองเฉพาะ time slots ที่มีวันที่ตั้งแต่วันนี้เป็นต้นไป
+                    $filteredTimeSlots = $timeSlots->filter(function($timeSlot) {
+                        return \Carbon\Carbon::parse($timeSlot->date)->startOfDay()->gte(\Carbon\Carbon::today());
+                    });
+                @endphp
+
+                @if ($filteredTimeSlots->isEmpty())
                     <div class="alert alert-info">
                         ไม่พบช่วงเวลาการนัดหมาย <a href="{{ route('timeslots.create') }}"
                             class="alert-link">เพิ่มช่วงเวลาใหม่</a>
                     </div>
                 @else
+                    <div class="alert alert-info">
+                        <i class="fa fa-info-circle me-1"></i> แสดงเฉพาะช่วงเวลาที่มีวันที่ตั้งแต่วันนี้เป็นต้นไป ({{ \Carbon\Carbon::today()->format('d/m/Y') }})
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped table-vcenter">
                             <thead>
@@ -169,7 +180,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach ($timeSlots as $timeSlot)
+                                @foreach ($filteredTimeSlots as $timeSlot)
                                     <tr>
                                         <td>{{ $timeSlot->clinic->name }}</td>
                                         <td>{{ $timeSlot->doctor->name }}</td>

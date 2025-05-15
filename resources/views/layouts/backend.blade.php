@@ -12,7 +12,7 @@
   -->
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
 
-    <title>Codebase - Bootstrap 5 Admin Template &amp; UI Framework</title>
+    <title>ระบบนัดออนไลน์</title>
 
     <meta name="description" content="Codebase - Bootstrap 5 Admin Template &amp; UI Framework created by pixelcave">
     <meta name="author" content="pixelcave">
@@ -110,7 +110,7 @@
 
                 <!-- User Info -->
                 <a class="link-fx text-body-color-dark fw-semibold fs-sm" href="javascript:void(0)">
-                    John Smith
+                  {{ Auth::user()->name }}
                 </a>
                 <!-- END User Info -->
 
@@ -159,7 +159,7 @@
                         <a class="link-fx fw-bold tracking-wide mx-auto" href="/">
                             <span class="smini-hidden">
                                 <i class="fa fa-fire text-primary"></i>
-                                <span class="fs-4 text-dual">code</span><span class="fs-4 text-primary">base</span>
+                                <span class="fs-4 text-dual">ระบบนัด</span><span class="fs-4 text-primary">NHH</span>
                             </span>
                         </a>
                     </div>
@@ -198,7 +198,7 @@
                             <ul class="list-inline mt-3 mb-0">
                                 <li class="list-inline-item">
                                     <a class="link-fx text-dual fs-sm fw-semibold text-uppercase"
-                                        href="javascript:void(0)">J. Smith</a>
+                                        href="javascript:void(0)">{{ Auth::user()->name }}</a>
                                 </li>
                                 <li class="list-inline-item">
                                     <!-- Layout API, functionality initialized in Template._uiApiLayout() -->
@@ -293,12 +293,7 @@
                     </button>
                     <!-- END Toggle Sidebar -->
 
-                    <!-- Open Search Section -->
-                    <!-- Layout API, functionality initialized in Template._uiApiLayout() -->
-                    <button type="button" class="btn btn-sm btn-alt-secondary" data-toggle="layout"
-                        data-action="header_search_on">
-                        <i class="fa fa-fw fa-search"></i>
-                    </button>
+                   
                     <!-- END Open Search Section -->
 
                     <!-- Options -->
