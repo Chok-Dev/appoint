@@ -46,23 +46,30 @@ class AppointmentController extends Controller
             ], 500);
         }
     }
-    public function index()
+    public function index(Request $request)
     {
         // Set the number of items per page
         $perPage = 10; // You can adjust this value as needed
 
-        // For admin users, show all appointments
-        if (Auth::user()->isAdmin()) {
-            $appointments = Appointment::with(['user', 'timeSlot', 'doctor', 'clinic'])
-                ->orderBy('created_at', 'desc')
-                ->paginate($perPage);
+        // Query builder
+        $query = Appointment::with(['user', 'timeSlot', 'doctor', 'clinic']);
+
+        // Filter by user_id if provided
+        if ($request->has('user_id') && $request->user_id) {
+            $query->where('user_id', $request->user_id);
         } else {
-            // For regular users, show only their appointments
-            $appointments = Auth::user()->appointments()
-                ->with(['timeSlot', 'doctor', 'clinic'])
-                ->orderBy('created_at', 'desc')
-                ->paginate($perPage);
+            // Otherwise, apply standard permission logic
+            if (!Auth::user()->isAdmin()) {
+                // For regular users, show only their appointments
+                $query->where('user_id', Auth::id());
+            }
         }
+
+        // Sort by created_at descending
+        $query->orderBy('created_at', 'desc');
+
+        // Paginate the results
+        $appointments = $query->paginate($perPage);
 
         return view('appointments.index', compact('appointments'));
     }

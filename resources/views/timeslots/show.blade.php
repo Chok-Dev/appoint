@@ -36,7 +36,7 @@
                             <tr>
                                 <th>วันที่</th>
                                 <td>
-                                    {{ \Carbon\Carbon::parse($timeSlot->date)->format('d/m/Y') }}
+                                    {{ \Carbon\Carbon::parse($timeSlot->date)->thaidate() }}
                                 </td>
                             </tr>
                             <tr>
@@ -67,11 +67,11 @@
                             </tr>
                             <tr>
                                 <th>วันที่สร้าง</th>
-                                <td>{{ $timeSlot->created_at->format('d/m/Y H:i') }}</td>
+                                <td>{{ $timeSlot->created_at->thaidate() }}</td>
                             </tr>
                             <tr>
                                 <th>วันที่แก้ไขล่าสุด</th>
-                                <td>{{ $timeSlot->updated_at->format('d/m/Y H:i') }}</td>
+                                <td>{{ $timeSlot->updated_at->thaidate() }}</td>
                             </tr>
                         </table>
                     </div>
@@ -119,7 +119,7 @@
                                                     <span class="badge bg-info">เสร็จสิ้น</span>
                                                 @endif
                                             </td>
-                                            <td>{{ $appointment->created_at->format('d/m/Y H:i') }}</td>
+                                            <td>{{ $appointment->created_at->thaidate('D j M y') }}</td>
                                             <td>
                                                 <a href="{{ route('appointments.show', $appointment) }}" class="btn btn-sm btn-alt-secondary">
                                                     <i class="fa fa-eye"></i>

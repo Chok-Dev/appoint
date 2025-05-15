@@ -12,6 +12,21 @@
           </a>
         </div>
       </div>
+      @if (request('user_id'))
+        @php
+          $filterUser = App\Models\User::find(request('user_id'));
+        @endphp
+        @if ($filterUser)
+          <div class="block-content pb-0">
+            <div class="alert alert-info">
+              <i class="fa fa-filter me-1"></i> กำลังแสดงการนัดหมายของผู้ใช้งาน: <strong>{{ $filterUser->name }}</strong>
+              <a href="{{ route('appointments.index') }}" class="float-end">
+                <i class="fa fa-times"></i> ยกเลิกตัวกรอง
+              </a>
+            </div>
+          </div>
+        @endif
+      @endif
       <div class="block-content">
         @if (session('success'))
           <div class="alert alert-success alert-dismissible" role="alert">
@@ -63,7 +78,7 @@
                     <td>{{ $appointment->patient_hn ?? '-' }}</td>
                     <td>{{ $appointment->clinic->name }}</td>
                     <td>{{ $appointment->doctor->name }}</td>
-                    <td>{{ \Carbon\Carbon::parse($appointment->timeSlot->date)->format('d/m/Y') }}</td>
+                    <td>{{ \Carbon\Carbon::parse($appointment->timeSlot->date)->thaidate('D j M y') }}</td>
                     <td>{{ \Carbon\Carbon::parse($appointment->timeSlot->start_time)->format('H:i') }} -
                       {{ \Carbon\Carbon::parse($appointment->timeSlot->end_time)->format('H:i') }}</td>
                     @if (Auth::user()->isAdmin())

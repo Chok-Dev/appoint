@@ -4,7 +4,7 @@
 <div class="content">
     <div class="block block-rounded">
         <div class="block-header block-header-default">
-            <h3 class="block-title">เพิ่มผู้ใช้งาน</h3>
+            <h3 class="block-title">แก้ไขผู้ใช้งาน</h3>
             <div class="block-options">
                 <a href="{{ route('users.index') }}" class="btn btn-alt-secondary">
                     <i class="fa fa-arrow-left"></i> กลับ
@@ -22,13 +22,14 @@
                     </ul>
                 </div>
             @endif
-        <form action="{{ route('users.store') }}" method="POST">
+        <form action="{{ route('users.update', $user) }}" method="POST">
             @csrf
+            @method('PUT')
             <div class="row mb-4">
                 <div class="col-md-6">
                     <div class="mb-4">
                         <label class="form-label" for="name">ชื่อผู้ใช้งาน <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name" value="{{ old('name') }}" required>
+                        <input type="text" class="form-control @error('name') is-invalid @enderror" id="name" name="name" value="{{ old('name', $user->name) }}" required>
                         @error('name')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
@@ -36,9 +37,9 @@
                 </div>
                 <div class="col-md-6">
                     <div class="mb-4">
-                        <label class="form-label" for="email">อีเมล <span class="text-danger">*</span></label>
-                        <input type="email" class="form-control @error('email') is-invalid @enderror" id="email" name="email" value="{{ old('email') }}" required>
-                        @error('email')
+                        <label class="form-label" for="department">หน่วยงาน <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control @error('department') is-invalid @enderror" id="department" name="department" value="{{ old('department', $user->department ?? '') }}" required>
+                        @error('department')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
                     </div>
@@ -48,8 +49,8 @@
             <div class="row mb-4">
                 <div class="col-md-6">
                     <div class="mb-4">
-                        <label class="form-label" for="password">รหัสผ่าน <span class="text-danger">*</span></label>
-                        <input type="password" class="form-control @error('password') is-invalid @enderror" id="password" name="password" required>
+                        <label class="form-label" for="password">รหัสผ่าน <span class="text-muted">(เว้นว่างถ้าไม่ต้องการเปลี่ยน)</span></label>
+                        <input type="password" class="form-control @error('password') is-invalid @enderror" id="password" name="password">
                         @error('password')
                             <span class="invalid-feedback">{{ $message }}</span>
                         @enderror
@@ -57,8 +58,8 @@
                 </div>
                 <div class="col-md-6">
                     <div class="mb-4">
-                        <label class="form-label" for="password_confirmation">ยืนยันรหัสผ่าน <span class="text-danger">*</span></label>
-                        <input type="password" class="form-control" id="password_confirmation" name="password_confirmation" required>
+                        <label class="form-label" for="password_confirmation">ยืนยันรหัสผ่าน</label>
+                        <input type="password" class="form-control" id="password_confirmation" name="password_confirmation">
                     </div>
                 </div>
             </div>
@@ -66,11 +67,11 @@
             <div class="mb-4">
                 <label class="form-label d-block">บทบาท <span class="text-danger">*</span></label>
                 <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="radio" id="role_user" name="role" value="user" {{ old('role') === 'user' ? 'checked' : '' }} checked>
+                    <input class="form-check-input" type="radio" id="role_user" name="role" value="user" {{ (old('role', $user->role ?? 'user') === 'user') ? 'checked' : '' }}>
                     <label class="form-check-label" for="role_user">ผู้ใช้งานทั่วไป</label>
                 </div>
                 <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="radio" id="role_admin" name="role" value="admin" {{ old('role') === 'admin' ? 'checked' : '' }}>
+                    <input class="form-check-input" type="radio" id="role_admin" name="role" value="admin" {{ (old('role', $user->role ?? 'user') === 'admin') ? 'checked' : '' }}>
                     <label class="form-check-label" for="role_admin">ผู้ดูแลระบบ</label>
                 </div>
                 @error('role')

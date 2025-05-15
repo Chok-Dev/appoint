@@ -6,6 +6,7 @@ use App\Http\Controllers\ClinicController;
 use App\Http\Controllers\DoctorController;
 use App\Http\Controllers\TimeSlotController;
 use App\Http\Controllers\AppointmentController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -93,6 +94,11 @@ Route::middleware(['auth'])->group(function () {
         });
     });
     
+    // User management routes (admin only)
+    Route::middleware(['admin'])->group(function () {
+        Route::resource('users', UserController::class);
+    });
+    
     // Profile routes
     Route::prefix('profile')->name('profile.')->group(function () {
         Route::get('/edit', [ProfileController::class, 'edit'])->name('edit');
@@ -103,27 +109,4 @@ Route::middleware(['auth'])->group(function () {
     // AJAX routes
     Route::get('/get-doctors', [AppointmentController::class, 'getDoctors'])->name('get.doctors');
     Route::get('/get-timeslots', [AppointmentController::class, 'getTimeSlots'])->name('get.timeslots');
-    
-    // Test route for debugging timeslot deletion
-    Route::get('/test-delete-timeslot/{id}', function($id) {
-        try {
-            $timeSlot = \App\Models\TimeSlot::find($id);
-            if (!$timeSlot) {
-                return "TimeSlot #$id not found";
-            }
-            
-            // Delete related appointments first
-            $appointments = $timeSlot->appointments()->get();
-            foreach($appointments as $appointment) {
-                $appointment->delete();
-            }
-            
-            // Then delete the timeslot
-            $result = $timeSlot->delete();
-            
-            return "Delete result: " . ($result ? "Success" : "Failed");
-        } catch (\Exception $e) {
-            return "Error: " . $e->getMessage();
-        }
-    })->name('test.delete.timeslot');
 });

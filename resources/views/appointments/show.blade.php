@@ -73,7 +73,7 @@
                             </tr>
                             <tr>
                                 <th>วันที่</th>
-                                <td>{{ \Carbon\Carbon::parse($appointment->timeSlot->date)->format('d/m/Y') }}</td>
+                                <td>{{ \Carbon\Carbon::parse($appointment->timeSlot->date)->thaidate()}}</td>
                             </tr>
                             <tr>
                                 <th>เวลา</th>
@@ -112,16 +112,16 @@
                                 <td>{{ $appointment->user->name }}</td>
                             </tr>
                             <tr>
-                                <th>อีเมล</th>
-                                <td>{{ $appointment->user->email }}</td>
+                                <th>นัดจาก</th>
+                                <td>{{ $appointment->user->department  }}</td>
                             </tr>
                             <tr>
                                 <th>วันที่สร้าง</th>
-                                <td>{{ $appointment->created_at->format('d/m/Y H:i') }}</td>
+                                <td>{{ $appointment->created_at->thaidate() }}</td>
                             </tr>
                             <tr>
                                 <th>วันที่แก้ไขล่าสุด</th>
-                                <td>{{ $appointment->updated_at->format('d/m/Y H:i') }}</td>
+                                <td>{{ $appointment->updated_at->thaidate() }}</td>
                             </tr>
                         </table>
                     </div>

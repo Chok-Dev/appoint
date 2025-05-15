@@ -40,14 +40,15 @@ class UserController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'department' => ['required', 'string', 'max:255'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'role' => ['required', 'in:user,admin'],
         ]);
 
         $user = User::create([
             'name' => $request->name,
-            'email' => $request->email,
+            'department' => $request->department,
+            'email' => $request->name . '@hospital.local', // สร้าง email อัตโนมัติเพื่อให้ตรงกับข้อกำหนดของ Laravel
             'password' => Hash::make($request->password),
             'role' => $request->role,
         ]);
@@ -65,7 +66,7 @@ class UserController extends Controller
         $pendingAppointments = $user->appointments()->where('status', 'pending')->count();
         $completedAppointments = $user->appointments()->where('status', 'completed')->count();
         $cancelledAppointments = $user->appointments()->where('status', 'cancelled')->count();
-        
+
         return view('users.show', compact('user', 'appointmentsCount', 'pendingAppointments', 'completedAppointments', 'cancelledAppointments'));
     }
 
@@ -84,7 +85,7 @@ class UserController extends Controller
     {
         $rules = [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email,'.$user->id],
+            'department' => ['required', 'string', 'max:255'],
             'role' => ['required', 'in:user,admin'],
         ];
 

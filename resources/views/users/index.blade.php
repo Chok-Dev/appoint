@@ -1,23 +1,8 @@
 @extends('layouts.backend')
+
 @section('content')
-<!-- Page Content -->
-<div class="content">
-    <div class="block block-rounded">
-        <div class="block-header block-header-default">
-            <h3 class="block-title">ผู้ใช้งานทั้งหมด</h3>
-            <div class="block-options">
-                <a href="{{ route('users.create') }}" class="btn btn-alt-primary">
-                    <i class="fa fa-plus"></i> เพิ่มผู้ใช้งาน
-                </a>
-            </div>
-        </div>
-        <div class="block-content">
-            @if(session('success'))
-                <div class="alert alert-success alert-dismissible" role="alert">
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    <p class="mb-0">{{ session('success') }}</p>
-                </div>
-            @endif
+
+<!-- Page Content --> <div class="content"> <div class="block block-rounded"> <div class="block-header block-header-default"> <h3 class="block-title">ผู้ใช้งานทั้งหมด</h3> <div class="block-options"> <a href="{{ route('users.create') }}" class="btn btn-alt-primary"> <i class="fa fa-plus"></i> เพิ่มผู้ใช้งาน </a> </div> </div> <div class="block-content"> @if(session('success')) <div class="alert alert-success alert-dismissible" role="alert"> <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button> <p class="mb-0">{{ session('success') }}</p> </div> @endif
         @if(session('error'))
             <div class="alert alert-danger alert-dismissible" role="alert">
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -35,7 +20,7 @@
                     <thead>
                         <tr>
                             <th>ชื่อผู้ใช้งาน</th>
-                            <th>อีเมล</th>
+                            <th>หน่วยงาน</th>
                             <th>บทบาท</th>
                             <th>วันที่สมัคร</th>
                             <th class="text-center" style="width: 150px;">จัดการ</th>
@@ -45,7 +30,7 @@
                         @foreach($users as $user)
                             <tr>
                                 <td>{{ $user->name }}</td>
-                                <td>{{ $user->email }}</td>
+                                <td>{{ $user->department ?? '-' }}</td>
                                 <td>
                                     @if($user->isAdmin())
                                         <span class="badge bg-primary">ผู้ดูแลระบบ</span>
@@ -53,7 +38,7 @@
                                         <span class="badge bg-secondary">ผู้ใช้งานทั่วไป</span>
                                     @endif
                                 </td>
-                                <td>{{ $user->created_at->format('d/m/Y') }}</td>
+                                <td>{{ $user->created_at->thaidate('D j M y') }}</td>
                                 <td class="text-center">
                                     <div class="btn-group">
                                         <a href="{{ route('users.show', $user) }}" class="btn btn-sm btn-alt-secondary" data-toggle="tooltip" title="ดูรายละเอียด">
@@ -115,6 +100,4 @@
         @endif
     </div>
 </div>
-</div>
-<!-- END Page Content -->
-@endsection
+</div> <!-- END Page Content --> @endsection
