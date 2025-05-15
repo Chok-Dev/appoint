@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Carbon\Carbon;
+use App\Models\Group;
 use App\Models\Clinic;
 use App\Models\Doctor;
 use App\Models\TimeSlot;
@@ -68,13 +69,26 @@ class AppointmentController extends Controller
 
     public function create()
     {
+        $groups = Group::all(); // เพิ่มการดึงข้อมูลกลุ่มงาน
         $clinics = Clinic::all();
         $doctors = collect(); // Empty collection by default, will be populated via AJAX
         $timeSlots = collect(); // Empty collection by default, will be populated via AJAX
 
-        return view('appointments.create', compact('clinics', 'doctors', 'timeSlots'));
+        return view('appointments.create', compact('groups', 'clinics', 'doctors', 'timeSlots'));
     }
+    
+    public function getClinicsByGroup(Request $request)
+    {
+        $request->validate([
+            'group_id' => 'required|exists:groups,id',
+        ]);
 
+        $clinics = Clinic::where('group_id', $request->group_id)
+            ->orderBy('name')
+            ->get();
+
+        return response()->json($clinics);
+    }
     // AJAX endpoint to get doctors for a clinic
     public function getDoctors(Request $request)
     {
