@@ -101,6 +101,10 @@
                           data-toggle="tooltip" title="ดูรายละเอียด">
                           <i class="fa fa-eye"></i>
                         </a>
+                        <a href="{{ route('appointments.print', $appointment) }}" class="btn btn-sm btn-alt-secondary"
+                          data-toggle="tooltip" title="พิมพ์ใบนัด" target="_blank">
+                          <i class="fa fa-print"></i>
+                        </a>
                         @if ($appointment->status == 'pending')
                           <a href="{{ route('appointments.edit', $appointment) }}" class="btn btn-sm btn-alt-secondary"
                             data-toggle="tooltip" title="แก้ไข">

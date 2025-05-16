@@ -19,6 +19,21 @@ class AppointmentController extends Controller
     {
         $this->middleware('auth');
     }
+    /**
+     * Generate a printable version of the appointment.
+     */
+    public function print(Appointment $appointment)
+    {
+        // Check if the user is admin or the appointment belongs to the user
+        if (!Auth::user()->isAdmin() && $appointment->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $appointment->load(['user', 'timeSlot', 'doctor', 'clinic']);
+
+        return view('appointments.print', compact('appointment'));
+    }
+
     public function searchPatient(Request $request)
     {
         $request->validate([

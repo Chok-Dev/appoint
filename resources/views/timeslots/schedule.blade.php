@@ -100,7 +100,7 @@
 
       // Initialize FullCalendar
       const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'timeGridWeek',
+        initialView: 'dayGridMonth',
         headerToolbar: {
           left: 'prev,next today',
           center: 'title',
@@ -115,7 +115,7 @@
         slotMaxTime: '19:00:00',
         slotDuration: '00:30:00',
         navLinks: true,
-        weekNumbers: true,
+        weekNumbers: false,
         selectable: false,
         selectMirror: true,
         dayMaxEvents: true,
