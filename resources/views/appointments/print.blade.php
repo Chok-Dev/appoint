@@ -154,7 +154,7 @@
         <div class="info-value">{{ $appointment->patient_cid }}</div>
       </div>
       <div class="info-row">
-        <div class="info-label">HN:</div>
+        <div class="info-label">HN รพ.หนองหาน:</div>
         <div class="info-value">{{ $appointment->patient_hn ?: '-' }}</div>
       </div>
       <div class="info-row">

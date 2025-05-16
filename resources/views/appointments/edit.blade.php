@@ -481,12 +481,12 @@
         const date = $('#date').val();
 
         if (clinicId && doctorId && date) {
-          // แสดง loading
+          // แสดงไอคอนโหลดขณะดึงข้อมูล
           $('#time-loading').show();
           $('#time_slot_id').prop('disabled', true);
           $('#time-message').hide();
 
-          // ใช้ AJAX แบบ jQuery
+          // ใช้ AJAX เพื่อดึงข้อมูลช่วงเวลาที่ว่าง
           $.ajax({
             url: "{{ route('get.timeslots') }}",
             type: "GET",
@@ -498,53 +498,88 @@
             },
             success: function(data) {
               $('#time-loading').hide();
-              console.log('TimeSlots data:', data);
+              console.log('ข้อมูลช่วงเวลา:', data);
+
+              // ล้างและเพิ่มตัวเลือกเริ่มต้นในช่องเลือกช่วงเวลา
               $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>');
 
-              // ถ้ามีช่วงเวลาเดิม ให้เพิ่มเข้าไปด้วย
-              @if (old('time_slot_id', $appointment->time_slot_id))
-                const currentTimeSlot = {!! json_encode($appointment->timeSlot) !!};
-                if (currentTimeSlot && currentTimeSlot.date == date) {
-                  const option = document.createElement('option');
-                  option.value = currentTimeSlot.id;
-                  option.textContent =
-                    `${currentTimeSlot.start_time.substring(0, 5)} - ${currentTimeSlot.end_time.substring(0, 5)} (ช่วงเวลาปัจจุบัน)`;
-                  option.setAttribute('data-current', 'true');
-                  $('#time_slot_id').append(option);
-                }
-              @endif
+              // เก็บ ID ของช่วงเวลาเดิมเพื่อใช้ตรวจสอบ
+              const currentTimeSlotId = "{{ $appointment->time_slot_id }}";
+              let currentTimeSlotExists =
+              false; // ตัวแปรเพื่อตรวจสอบว่าช่วงเวลาเดิมมีอยู่ในรายการที่ดึงมาหรือไม่
 
+              // เพิ่มช่วงเวลาที่ว่างทั้งหมดในรายการ
               if (data && data.length > 0) {
                 $.each(data, function(key, timeSlot) {
-                  // ข้ามช่วงเวลาปัจจุบัน (ถ้ามี) เพราะเราได้เพิ่มไปแล้ว
-                  @if (old('time_slot_id', $appointment->time_slot_id))
-                    if (timeSlot.id == "{{ old('time_slot_id', $appointment->time_slot_id) }}") {
-                      return true; // continue
-                    }
-                  @endif
-
                   let startTime = timeSlot.start_time.substr(0, 5);
                   let endTime = timeSlot.end_time.substr(0, 5);
                   let availableSlots = timeSlot.max_appointments - timeSlot.booked_appointments;
 
-                  $('#time_slot_id').append('<option value="' + timeSlot.id + '">' + startTime + ' - ' +
-                    endTime + ' (ว่าง ' + availableSlots + ' คิว)</option>');
-                });
-                $('#time_slot_id').prop('disabled', false);
+                  // ตรวจสอบว่าช่วงเวลานี้คือช่วงเวลาเดิมหรือไม่
+                  if (timeSlot.id == currentTimeSlotId) {
+                    currentTimeSlotExists = true; // พบช่วงเวลาเดิมในรายการ
+                  }
 
-                // เลือกช่วงเวลาที่เคยเลือกไว้ (ถ้ามี)
-                @if (old('time_slot_id', $appointment->time_slot_id))
-                  $('#time_slot_id').val("{{ old('time_slot_id', $appointment->time_slot_id) }}");
-                @endif
-              } else if ($('#time_slot_id option[data-current="true"]').length === 0) {
-                // ถ้าไม่มีช่วงเวลาใหม่และไม่มีช่วงเวลาปัจจุบัน
-                $('#time_slot_id').append('<option disabled>ไม่พบช่วงเวลาที่ว่าง</option>');
-                $('#time_slot_id').prop('disabled', true);
-                $('#time-message').html(
-                  `<div class="alert alert-warning mt-2">ไม่พบช่วงเวลาที่ว่างในวันที่ ${date}</div>`).show();
+                  // เพิ่มตัวเลือกในช่องเลือก
+                  $('#time_slot_id').append('<option value="' + timeSlot.id + '">' +
+                    startTime + ' - ' + endTime + ' (ว่าง ' + availableSlots + ' คิว)</option>');
+                });
+
+                // ถ้าวันที่ที่เลือกตรงกับวันที่เดิมของการนัดหมาย
+                if (date === "{{ $appointment->timeSlot->date }}") {
+                  // เปิดใช้งานช่องเลือก
+                  $('#time_slot_id').prop('disabled', false);
+
+                  // พยายามเลือกช่วงเวลาเดิมเสมอถ้าเราอยู่ในวันที่เดิม
+                  $('#time_slot_id').val(currentTimeSlotId);
+
+                  // ถ้าช่วงเวลาเดิมไม่มีอยู่ในรายการ (อาจเพราะตอนนี้เต็มแล้ว)
+                  // เราต้องเพิ่มมันเข้าไปเองเพื่อรักษาการเลือกเดิมไว้
+                  if (!currentTimeSlotExists) {
+                    // ดึงข้อมูลช่วงเวลาเดิม
+                    const originalSlot = {
+                      id: "{{ $appointment->time_slot_id }}",
+                      start_time: "{{ \Carbon\Carbon::parse($appointment->timeSlot->start_time)->format('H:i') }}",
+                      end_time: "{{ \Carbon\Carbon::parse($appointment->timeSlot->end_time)->format('H:i') }}"
+                    };
+
+                    // เพิ่มช่วงเวลาเดิมเข้าไปในรายการพร้อมระบุว่าเป็นช่วงเวลาเดิม
+                    $('#time_slot_id').append('<option value="' + originalSlot.id + '" data-original="true">' +
+                      originalSlot.start_time + ' - ' + originalSlot.end_time + ' (ช่วงเวลาเดิม)</option>');
+
+                    // เลือกช่วงเวลาเดิม
+                    $('#time_slot_id').val(originalSlot.id);
+                  }
+                } else {
+                  // กรณีเลือกวันที่อื่นที่ไม่ใช่วันที่เดิม เพียงแค่เปิดใช้งานช่องเลือก
+                  $('#time_slot_id').prop('disabled', false);
+                }
+              } else {
+                // ไม่มีช่วงเวลาว่างสำหรับวันที่ที่เลือก
+                if (date === "{{ $appointment->timeSlot->date }}") {
+                  // ถ้านี่คือวันที่เดิมแต่ไม่มีช่วงเวลาที่ว่าง ยังคงแสดงช่วงเวลาเดิม
+                  const originalSlot = {
+                    id: "{{ $appointment->time_slot_id }}",
+                    start_time: "{{ \Carbon\Carbon::parse($appointment->timeSlot->start_time)->format('H:i') }}",
+                    end_time: "{{ \Carbon\Carbon::parse($appointment->timeSlot->end_time)->format('H:i') }}"
+                  };
+
+                  $('#time_slot_id').append('<option value="' + originalSlot.id + '" data-original="true">' +
+                    originalSlot.start_time + ' - ' + originalSlot.end_time + ' (ช่วงเวลาเดิม)</option>');
+
+                  $('#time_slot_id').val(originalSlot.id);
+                  $('#time_slot_id').prop('disabled', false);
+                } else {
+                  // วันที่อื่นที่ไม่มีช่วงเวลาว่าง
+                  $('#time_slot_id').append('<option disabled>ไม่พบช่วงเวลาที่ว่าง</option>');
+                  $('#time_slot_id').prop('disabled', true);
+                  $('#time-message').html(
+                    `<div class="alert alert-warning mt-2">ไม่พบช่วงเวลาที่ว่างในวันที่ ${date}</div>`).show();
+                }
               }
             },
             error: function(xhr, status, error) {
+              // แสดงข้อความเมื่อเกิดข้อผิดพลาดในการดึงข้อมูล
               $('#time-loading').hide();
               console.error('AJAX error:', error, xhr);
               $('#time_slot_id').empty().append(
@@ -556,6 +591,7 @@
             }
           });
         } else {
+          // ยังไม่มีการเลือกคลินิก, แพทย์ หรือวันที่ครบถ้วน
           $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>');
           $('#time_slot_id').prop('disabled', true);
           $('#time-message').hide();
