@@ -237,9 +237,17 @@
                   <span class="nav-main-link-name">การนัดหมาย</span>
                 </a>
               </li>
+              <li class="nav-main-item{{ request()->is('timeslots/schedule') ? ' open' : '' }}">
+                <a class="nav-main-link{{ request()->is('timeslots/schedule') ? ' active' : '' }}"
+                  href="{{ route('timeslots.schedule') }}">
+                  <i class="nav-main-link-icon fa fa-calendar-alt"></i>
+                  <span class="nav-main-link-name">ตารางเวรแพทย์</span>
+                </a>
+              </li>
               @if (Auth::user()->isAdmin())
-                <li class="nav-main-item{{ request()->is('timeslots*') ? ' open' : '' }}">
-                  <a class="nav-main-link{{ request()->is('timeslots') ? ' active' : '' }}"
+                <li
+                  class="nav-main-item{{ request()->is('timeslots*') && !request()->is('timeslots/schedule') ? ' open' : '' }}">
+                  <a class="nav-main-link{{ request()->is('timeslots') && !request()->is('timeslots/schedule') ? ' active' : '' }}"
                     href="{{ route('timeslots.index') }}">
                     <i class="nav-main-link-icon fa fa-clock"></i>
                     <span class="nav-main-link-name">ช่วงเวลานัดหมาย</span>

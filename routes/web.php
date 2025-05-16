@@ -66,6 +66,7 @@ Route::middleware(['auth'])->group(function () {
     // TimeSlot routes
     Route::prefix('timeslots')->name('timeslots.')->group(function () {
         Route::get('/', [TimeSlotController::class, 'index'])->name('index');
+        Route::get('/schedule', [TimeSlotController::class, 'schedule'])->name('schedule');
         Route::get('/create', [TimeSlotController::class, 'create'])->name('create');
         Route::post('/', [TimeSlotController::class, 'store'])->name('store');
         Route::get('/{timeSlot}', [TimeSlotController::class, 'show'])->name('show');
@@ -75,7 +76,6 @@ Route::middleware(['auth'])->group(function () {
     });
     
     // Appointment routes
-    
     Route::get('/get-clinics-by-group', [AppointmentController::class, 'getClinicsByGroup'])->name('get.clinics.by.group');
     Route::get('/get-available-dates', [AppointmentController::class, 'getAvailableDates'])->name('get.available.dates');
     Route::get('/search-patient', [AppointmentController::class, 'searchPatient'])->name('search.patient');

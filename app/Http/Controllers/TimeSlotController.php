@@ -2,21 +2,22 @@
 
 namespace App\Http\Controllers;
 
-
 use Carbon\Carbon;
+use App\Models\Group;
 use App\Models\Clinic;
 use App\Models\Doctor;
 use App\Models\TimeSlot;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class TimeSlotController extends Controller
 {
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware('admin')->except(['index', 'show']);
+        $this->middleware('admin')->except(['index', 'show', 'schedule']);
     }
 
     public function index(Request $request)
@@ -251,7 +252,6 @@ class TimeSlotController extends Controller
 
     public function destroy(TimeSlot $timeSlot)
     {
-
         DB::beginTransaction();
         try {
             // Force delete related appointments
@@ -267,5 +267,167 @@ class TimeSlotController extends Controller
             DB::rollBack();
             return back()->withErrors(['delete' => 'Error deleting time slot: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Display the doctor's schedule in a calendar view
+     */
+    public function schedule(Request $request)
+    {
+        $query = TimeSlot::with(['doctor', 'clinic'])
+            ->where('date', '>=', Carbon::today()->subWeek())
+            ->where('date', '<=', Carbon::today()->addMonths(2));
+
+        // Filter by doctor if specified
+        if ($request->has('doctor_id') && $request->doctor_id) {
+            $query->where('doctor_id', $request->doctor_id);
+        }
+
+        // Filter by clinic if specified
+        if ($request->has('clinic_id') && $request->clinic_id) {
+            $query->where('clinic_id', $request->clinic_id);
+        }
+            
+        $timeSlots = $query->get();
+        
+        // Generate color mapping for clinics
+        $clinics = Clinic::all();
+        $doctors = Doctor::all();
+        
+        // Define a set of colors for clinics
+        $colors = [
+            '#3788d8', // Primary blue
+            '#71BB4D', // Green
+            '#F5A623', // Orange
+            '#D84315', // Deep orange
+            '#673AB7', // Deep purple
+            '#00ACC1', // Cyan
+            '#EC407A', // Pink
+            '#5D4037', // Brown
+            '#455A64', // Blue grey
+            '#7986CB', // Indigo
+            '#C0CA33', // Lime
+            '#FFB300', // Amber
+        ];
+        
+        // Create color mapping for clinics
+        $clinicColors = [];
+        foreach ($clinics as $index => $clinic) {
+            $clinicColors[$clinic->id] = $colors[$index % count($colors)];
+        }
+        
+        // Get holidays from PostgreSQL database
+        try {
+            $holidays = [];
+            $holidaysQuery = DB::connection('pgsql')
+                ->table('holiday')
+                ->whereRaw("EXTRACT(YEAR FROM holiday_date) = ?", [Carbon::today()->year])
+                ->select('holiday_date', 'day_name', 'day_status')
+                ->get();
+                
+            foreach ($holidaysQuery as $holiday) {
+                $holidayDate = Carbon::parse($holiday->holiday_date)->format('Y-m-d');
+                $holidays[] = [
+                    'title' => $holiday->day_name,
+                    'start' => $holidayDate,
+                    'display' => 'background',
+                    'backgroundColor' => '#ffcccc', // Light red background
+                    'classNames' => ['holiday-event'],
+                    'allDay' => true
+                ];
+            }
+        } catch (\Exception $e) {
+            // If cannot connect to PostgreSQL or table doesn't exist, use hardcoded holidays
+            Log::error('Error getting holidays: ' . $e->getMessage());
+            
+            // Hardcoded holidays for Thailand 2025 (for demonstration)
+            $thaiHolidays = [
+                ['date' => '2025-01-01', 'name' => 'วันขึ้นปีใหม่'],
+                ['date' => '2025-02-10', 'name' => 'วันมาฆบูชา'],
+                ['date' => '2025-04-06', 'name' => 'วันจักรี'],
+                ['date' => '2025-04-13', 'name' => 'วันสงกรานต์'],
+                ['date' => '2025-04-14', 'name' => 'วันสงกรานต์'],
+                ['date' => '2025-04-15', 'name' => 'วันสงกรานต์'],
+                ['date' => '2025-05-01', 'name' => 'วันแรงงานแห่งชาติ'],
+                ['date' => '2025-05-04', 'name' => 'วันฉัตรมงคล'],
+                ['date' => '2025-05-10', 'name' => 'วันวิสาขบูชา'],
+                ['date' => '2025-06-03', 'name' => 'วันเฉลิมพระชนมพรรษาสมเด็จพระราชินี'],
+                ['date' => '2025-07-28', 'name' => 'วันเฉลิมพระชนมพรรษา ร.10'],
+                ['date' => '2025-08-12', 'name' => 'วันแม่แห่งชาติ'],
+                ['date' => '2025-10-13', 'name' => 'วันคล้ายวันสวรรคต ร.9'],
+                ['date' => '2025-10-23', 'name' => 'วันปิยมหาราช'],
+                ['date' => '2025-12-05', 'name' => 'วันคล้ายวันเฉลิมพระชนมพรรษา ร.9'],
+                ['date' => '2025-12-10', 'name' => 'วันรัฐธรรมนูญ'],
+                ['date' => '2025-12-31', 'name' => 'วันสิ้นปี']
+            ];
+            
+            $holidays = [];
+            foreach ($thaiHolidays as $holiday) {
+                $holidays[] = [
+                    'title' => $holiday['name'],
+                    'start' => $holiday['date'],
+                    'display' => 'background',
+                    'backgroundColor' => '#ffcccc', // Light red background
+                    'classNames' => ['holiday-event'],
+                    'allDay' => true
+                ];
+            }
+        }
+        
+        // Format events for the calendar
+        $events = [];
+        foreach ($timeSlots as $timeSlot) {
+            // Skip inactive time slots if user is not an admin
+            if (!$timeSlot->is_active && !Auth::user()->isAdmin()) {
+                continue;
+            }
+            
+            // Format the start and end times properly
+            $date = $timeSlot->date->format('Y-m-d');
+            $startTime = $timeSlot->start_time->format('H:i:s');
+            $endTime = $timeSlot->end_time->format('H:i:s');
+            
+            // Format title - show how many slots available
+            $available = $timeSlot->max_appointments - $timeSlot->booked_appointments;
+            $title = $timeSlot->doctor->name . ' (' . $available . '/' . $timeSlot->max_appointments . ')';
+            
+            // Determine color based on clinic and availability
+            $color = $clinicColors[$timeSlot->clinic_id] ?? '#3788d8';
+            
+            // For inactive slots, make them gray (admin only can see these)
+            if (!$timeSlot->is_active) {
+                $color = '#6c757d'; // Bootstrap gray
+                $title .= ' [ปิดใช้งาน]';
+            }
+            
+            // If fully booked, make the event more transparent
+            $textColor = ($available == 0 && $timeSlot->is_active) ? '#333333' : '#FFFFFF';
+            $backgroundColor = ($available == 0 && $timeSlot->is_active) ? $color . '80' : $color; // 80 = 50% opacity in hex
+            
+            $events[] = [
+                'id' => $timeSlot->id,
+                'title' => $title,
+                'start' => $date . 'T' . $startTime,
+                'end' => $date . 'T' . $endTime,
+                'backgroundColor' => $backgroundColor,
+                'borderColor' => $color,
+                'textColor' => $textColor,
+                'extendedProps' => [
+                    'doctor' => $timeSlot->doctor->name,
+                    'clinic' => $timeSlot->clinic->name,
+                    'maxAppointments' => $timeSlot->max_appointments,
+                    'bookedAppointments' => $timeSlot->booked_appointments,
+                    'isActive' => $timeSlot->is_active,
+                ]
+            ];
+        }
+        
+        // Combine timeslot events with holidays
+        $events = array_merge($events, $holidays);
+        
+        // Create a flag to check if holidays are shown
+        $showHolidays = $request->has('show_holidays') ? (bool)$request->show_holidays : true;
+        
+        return view('timeslots.schedule', compact('events', 'clinics', 'doctors', 'clinicColors', 'showHolidays'));
     }
 }
