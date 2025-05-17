@@ -12,17 +12,17 @@
   -->
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
 
-  <title>ระบบนัดออนไลน์</title>
+  <title>ระบบนัดออนไลน์-โรงพยาบาลหนองหาน</title>
 
-  <meta name="description" content="Codebase - Bootstrap 5 Admin Template &amp; UI Framework created by pixelcave">
+  <meta name="description" content="ระบบนัดออนไลน์-โรงพยาบาลหนองหาน">
   <meta name="author" content="pixelcave">
   <meta name="robots" content="index, follow">
 
   <!-- Open Graph Meta -->
-  <meta property="og:title" content="Codebase - Bootstrap 5 Admin Template &amp; UI Framework">
+  <meta property="og:title" content="ระบบนัดออนไลน์-โรงพยาบาลหนองหาน">
   <meta property="og:site_name" content="Codebase">
   <meta property="og:description"
-    content="Codebase - Bootstrap 5 Admin Template &amp; UI Framework created by pixelcave">
+    content="ระบบนัดออนไลน์-โรงพยาบาลหนองหาน">
   <meta property="og:type" content="website">
   <meta property="og:url" content="">
   <meta property="og:image" content="">
@@ -34,7 +34,7 @@
 
   <!-- Modules -->
   @yield('css')
-  @vite(['resources/sass/main.scss', 'resources/js/codebase/app.js'])
+  @vite(['resources/sass/main.scss','resources/sass/codebase/themes/elegance.scss', 'resources/js/codebase/app.js'])
 
   <!-- Alternatively, you can also include a specific color theme after the main stylesheet to alter the default color theme of the template -->
   {{-- @vite(['resources/sass/main.scss', 'resources/sass/codebase/themes/corporate.scss', 'resources/js/codebase/app.js']) --}}
@@ -53,6 +53,7 @@
 </head>
 
 <body>
+  <div id="page-loader" class="show"></div>
   <!-- Page Container -->
   <!--
     Available classes for #page-container:
