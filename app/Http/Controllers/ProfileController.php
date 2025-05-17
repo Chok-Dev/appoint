@@ -16,11 +16,40 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): View
     {
+        // Return our custom backend view instead of the default Laravel Breeze view
         return view('profile.edit', [
             'user' => $request->user(),
         ]);
     }
+    // Add these methods to your ProfileController.php file
 
+    /**
+     * Update the user's Telegram chat ID.
+     */
+    public function updateTelegram(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'telegram_chat_id' => ['required', 'string'],
+        ]);
+
+        $request->user()->update([
+            'telegram_chat_id' => $validated['telegram_chat_id'],
+        ]);
+
+        return Redirect::route('profile.edit')->with('status', 'telegram-updated');
+    }
+
+    /**
+     * Disable Telegram notifications for the user.
+     */
+    public function disableTelegram(Request $request): RedirectResponse
+    {
+        $request->user()->update([
+            'telegram_chat_id' => null,
+        ]);
+
+        return Redirect::route('profile.edit')->with('status', 'telegram-disabled');
+    }
     /**
      * Update the user's profile information.
      */

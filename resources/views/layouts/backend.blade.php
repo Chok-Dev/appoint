@@ -21,8 +21,7 @@
   <!-- Open Graph Meta -->
   <meta property="og:title" content="ระบบนัดออนไลน์-โรงพยาบาลหนองหาน">
   <meta property="og:site_name" content="Codebase">
-  <meta property="og:description"
-    content="ระบบนัดออนไลน์-โรงพยาบาลหนองหาน">
+  <meta property="og:description" content="ระบบนัดออนไลน์-โรงพยาบาลหนองหาน">
   <meta property="og:type" content="website">
   <meta property="og:url" content="">
   <meta property="og:image" content="">
@@ -34,7 +33,7 @@
 
   <!-- Modules -->
   @yield('css')
-  @vite(['resources/sass/main.scss','resources/sass/codebase/themes/elegance.scss', 'resources/js/codebase/app.js'])
+  @vite(['resources/sass/main.scss', 'resources/sass/codebase/themes/elegance.scss', 'resources/js/codebase/app.js'])
 
   <!-- Alternatively, you can also include a specific color theme after the main stylesheet to alter the default color theme of the template -->
   {{-- @vite(['resources/sass/main.scss', 'resources/sass/codebase/themes/corporate.scss', 'resources/js/codebase/app.js']) --}}
@@ -283,6 +282,14 @@
                     <span class="nav-main-link-name">แพทย์</span>
                   </a>
                 </li>
+
+                <li class="nav-main-item{{ request()->is('admin/telegram*') ? ' open' : '' }}">
+                  <a class="nav-main-link{{ request()->is('admin/telegram') ? ' active' : '' }}"
+                    href="{{ route('telegram.index') }}">
+                    <i class="nav-main-link-icon fa fa-paper-plane"></i>
+                    <span class="nav-main-link-name">การแจ้งเตือน Telegram</span>
+                  </a>
+                </li>
               @endif
             </ul>
           </div>
@@ -375,7 +382,7 @@
               </div>
               <div class="p-2">
                 <a class="dropdown-item d-flex align-items-center justify-content-between space-x-1"
-                  href="javascript:void(0)">
+                  href="{{ route('profile.edit') }}">
                   <span>โปรไฟล์</span>
                   <i class="fa fa-fw fa-user opacity-25"></i>
                 </a>

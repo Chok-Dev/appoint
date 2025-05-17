@@ -1,13 +1,15 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\ClinicController;
 use App\Http\Controllers\DoctorController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TimeSlotController;
 use App\Http\Controllers\AppointmentController;
-use App\Http\Controllers\UserController;
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\TelegramAdminController;
+use App\Http\Controllers\TelegramWebhookController;
 
 /*
 |--------------------------------------------------------------------------
@@ -103,13 +105,35 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Profile routes
+    // Add these routes to your web.php file in the profile routes group
+
     Route::prefix('profile')->name('profile.')->group(function () {
+        // Existing routes
         Route::get('/edit', [ProfileController::class, 'edit'])->name('edit');
         Route::patch('/', [ProfileController::class, 'update'])->name('update');
         Route::delete('/', [ProfileController::class, 'destroy'])->name('destroy');
+
+        // New Telegram-related routes
+        Route::patch('/telegram', [ProfileController::class, 'updateTelegram'])->name('update.telegram');
+        Route::delete('/telegram', [ProfileController::class, 'disableTelegram'])->name('disable.telegram');
     });
 
     // AJAX routes
     Route::get('/get-doctors', [AppointmentController::class, 'getDoctors'])->name('get.doctors');
     Route::get('/get-timeslots', [AppointmentController::class, 'getTimeSlots'])->name('get.timeslots');
+});
+Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle'])->name('telegram.webhook');
+
+// Admin-only Telegram Webhook management routes
+Route::middleware(['auth', 'admin'])->group(function () {
+    Route::get('/telegram/setup-webhook', [TelegramWebhookController::class, 'setupWebhook'])->name('telegram.setup-webhook');
+    Route::get('/telegram/remove-webhook', [TelegramWebhookController::class, 'removeWebhook'])->name('telegram.remove-webhook');
+});
+
+Route::prefix('admin/telegram')->name('telegram.')->middleware(['auth', 'admin'])->group(function () {
+    Route::get('/', [TelegramAdminController::class, 'index'])->name('index');
+    Route::post('/test', [TelegramAdminController::class, 'sendTestNotification'])->name('test');
+    Route::post('/broadcast', [TelegramAdminController::class, 'sendBroadcast'])->name('broadcast');
+    Route::get('/check-status', [TelegramAdminController::class, 'checkStatus'])->name('check-status');
+    Route::post('/remove-user', [TelegramAdminController::class, 'removeUserTelegram'])->name('remove-user');
 });

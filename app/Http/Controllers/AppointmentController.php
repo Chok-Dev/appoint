@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use App\Services\TelegramNotificationService;
 
 class AppointmentController extends Controller
 {
@@ -290,7 +291,10 @@ class AppointmentController extends Controller
 
             // เพิ่มจำนวนการนัดหมายใน time slot
             $timeSlot->increment('booked_appointments');
-
+            TelegramNotificationService::notifyAdminNewAppointment($appointment);
+            if ($appointment->user->telegram_chat_id) {
+                TelegramNotificationService::notifyUserAppointmentCreated($appointment);
+            }
             DB::commit();
 
             return redirect()->route('appointments.index')
@@ -439,10 +443,11 @@ class AppointmentController extends Controller
             return redirect()->route('appointments.show', $appointment)
                 ->with('error', 'Only pending appointments can be cancelled.');
         }
-
+        $oldStatus = 'pending'; // The cancel method only works on pending appointments
+        $newStatus = 'cancelled';
         // Update status to cancelled
         $appointment->update(['status' => 'cancelled']);
-
+        TelegramNotificationService::notifyUserStatusUpdate($appointment, $oldStatus, $newStatus);
         // Decrement time slot booked_appointments count
         $appointment->timeSlot->decrement('booked_appointments');
 
@@ -461,6 +466,8 @@ class AppointmentController extends Controller
         $validated = $request->validate([
             'status' => 'required|in:pending,confirmed,cancelled,completed',
         ]);
+        $oldStatus = $appointment->getOriginal('status');
+        $newStatus = $validated['status'];
 
         // If changing to cancelled and was previously not cancelled, decrement booked count
         if ($validated['status'] === 'cancelled' && $appointment->status !== 'cancelled') {
@@ -472,7 +479,30 @@ class AppointmentController extends Controller
         }
 
         $appointment->update(['status' => $validated['status']]);
+        if ($oldStatus !== $newStatus) {
+            TelegramNotificationService::notifyUserStatusUpdate($appointment, $oldStatus, $newStatus);
 
+            // If status changed to confirmed, also notify admins
+            if ($newStatus === 'confirmed') {
+                // Optional: Notify admins when an appointment is confirmed
+                $adminMessage = "<b>✅ การนัดหมายได้รับการยืนยันแล้ว</b>\n\n" .
+                    "🏥 <b>คลินิก:</b> {$appointment->clinic->name}\n" .
+                    "👨‍⚕️ <b>แพทย์:</b> {$appointment->doctor->name}\n" .
+                    "📅 <b>วันที่:</b> " . \Carbon\Carbon::parse($appointment->timeSlot->date)->thaidate() . "\n" .
+                    "⏰ <b>เวลา:</b> " . \Carbon\Carbon::parse($appointment->timeSlot->start_time)->format('H:i') . " - " .
+                    \Carbon\Carbon::parse($appointment->timeSlot->end_time)->format('H:i') . " น.\n" .
+                    "👤 <b>ผู้ป่วย:</b> {$appointment->patient_pname} {$appointment->patient_fname} {$appointment->patient_lname}\n" .
+                    "🔗 <a href='" . route('appointments.show', $appointment) . "'>ดูรายละเอียดเพิ่มเติม</a>";
+
+                TelegramNotificationService::sendMessage(
+                    $adminMessage,
+                    null,
+                    null,
+                    'appointment_confirmed',
+                    $appointment->id
+                );
+            }
+        }
         return redirect()->route('appointments.show', $appointment)
             ->with('success', 'Appointment status updated successfully.');
     }
