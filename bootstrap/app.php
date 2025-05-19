@@ -14,8 +14,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'QrCode' => SimpleSoftwareIO\QrCode\Facades\QrCode::class,
-          
+
         ]);
+        $middleware->validateCsrfTokens(except: [
+            'https://appoint.chokdev.com/telegram/webhook',
+            'http://appoint.chokdev.com/telegram/webhook',
+
+        ]);
+        
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

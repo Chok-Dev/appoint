@@ -34,7 +34,7 @@ class TelegramNotificationService
 
             // If no token or chat ID, don't attempt to send
             if (!$token || !$chatId) {
-                Log::warning('Telegram notification not sent: Missing token or chat ID');
+              //  Log::warning('Telegram notification not sent: Missing token or chat ID');
                 return false;
             }
 
@@ -54,14 +54,14 @@ class TelegramNotificationService
             }
 
             // Log error if the message wasn't sent
-            Log::error('Failed to send Telegram notification', [
+           /*  Log::error('Failed to send Telegram notification', [
                 'status' => $response->status(),
                 'response' => $response->json(),
             ]);
-
+ */
             return false;
         } catch (\Exception $e) {
-            Log::error('Exception when sending Telegram notification: ' . $e->getMessage());
+            //Log::error('Exception when sending Telegram notification: ' . $e->getMessage());
             
             // Create a record of the failed notification in the database (if the model exists)
           
