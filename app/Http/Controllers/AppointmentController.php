@@ -37,23 +37,115 @@ class AppointmentController extends Controller
 
     public function searchPatient(Request $request)
     {
+        // กำหนดข้อความความผิดพลาดเป็นภาษาไทย
+        $messages = [
+            'search_term.required' => 'กรุณาระบุคำค้นหา',
+            'search_term.string' => 'คำค้นหาต้องเป็นข้อความ',
+            'search_term.min' => 'คำค้นหาต้องมีอย่างน้อย :min ตัวอักษร',
+            'search_type.required' => 'กรุณาเลือกประเภทการค้นหา',
+            'search_type.in' => 'ประเภทการค้นหาไม่ถูกต้อง',
+        ];
+
         $request->validate([
-            'cid' => 'required|string',
-        ]);
+            'search_term' => 'required|string|min:2',
+            'search_type' => 'required|in:cid,hn,name',
+        ], $messages);
 
         try {
-            $cid = $request->cid;
+            $searchTerm = $request->search_term;
+            $searchType = $request->search_type;
 
-            // ค้นหาข้อมูลผู้ป่วยจากฐานข้อมูล PostgreSQL
-            $patients = DB::connection('pgsql')->table('person')
-                ->selectRaw('cid, pname, fname, lname, birthdate, patient_hn')
-                ->where('cid', '=', $cid)
-                ->get();
+            // สร้าง query builder เริ่มต้น
+            $query = DB::connection('pgsql')->table('person')
+                ->selectRaw('cid, pname, fname, lname, birthdate, patient_hn');
 
-            return response()->json([
-                'success' => true,
-                'data' => $patients
-            ]);
+            // ปรับ query ตามประเภทการค้นหา
+            switch ($searchType) {
+                case 'cid':
+                    // ค้นหาจากเลขบัตรประชาชน
+                    // ทำการค้นหาแบบตรงตัวก่อน แล้วค่อยค้นหาแบบบางส่วน ถ้าไม่พบ
+                    $cidQuery = clone $query;
+                    $exactMatches = $cidQuery->where('cid', '=', $searchTerm)->get();
+
+                    // ถ้าพบข้อมูลจากการค้นหาแบบตรงตัว ให้ใช้ผลลัพธ์นั้น
+                    if ($exactMatches->count() > 0) {
+                        return response()->json([
+                            'success' => true,
+                            'data' => $exactMatches,
+                            'search_type' => 'cid',
+                            'exact_match' => true
+                        ]);
+                    }
+
+                    // ถ้าไม่พบจากการค้นหาแบบตรงตัว ให้ลองค้นหาแบบคล้ายคลึง
+                    $partialMatches = $query->where('cid', 'like', "%{$searchTerm}%")->get();
+                    return response()->json([
+                        'success' => true,
+                        'data' => $partialMatches,
+                        'search_type' => 'cid',
+                        'exact_match' => false
+                    ]);
+
+                case 'hn':
+                    // ค้นหาจาก HN
+                    // ทำการค้นหาแบบตรงตัวก่อน แล้วค่อยค้นหาแบบบางส่วน ถ้าไม่พบ
+                    $hnQuery = clone $query;
+                    $exactMatches = $hnQuery->where('patient_hn', '=', $searchTerm)->get();
+
+                    // ถ้าพบข้อมูลจากการค้นหาแบบตรงตัว ให้ใช้ผลลัพธ์นั้น
+                    if ($exactMatches->count() > 0) {
+                        return response()->json([
+                            'success' => true,
+                            'data' => $exactMatches,
+                            'search_type' => 'hn',
+                            'exact_match' => true
+                        ]);
+                    }
+
+                    // ถ้าไม่พบจากการค้นหาแบบตรงตัว ให้ลองค้นหาแบบคล้ายคลึง
+                    $partialMatches = $query->where('patient_hn', 'like', "%{$searchTerm}%")->get();
+                    return response()->json([
+                        'success' => true,
+                        'data' => $partialMatches,
+                        'search_type' => 'hn',
+                        'exact_match' => false
+                    ]);
+
+                case 'name':
+                    // ค้นหาจากชื่อ-นามสกุล
+                    // แยกคำค้นหาออกเป็นส่วนๆ
+                    $nameParts = explode(' ', trim($searchTerm));
+
+                    // สร้าง query ค้นหาจากชื่อหรือนามสกุล
+                    $nameQuery = clone $query;
+
+                    if (count($nameParts) == 1) {
+                        // ถ้าค้นหาด้วยคำเดียว ค้นหาทั้งจากชื่อและนามสกุล
+                        $nameQuery->where(function ($q) use ($nameParts) {
+                            $q->where('fname', 'like', "%{$nameParts[0]}%")
+                                ->orWhere('lname', 'like', "%{$nameParts[0]}%");
+                        });
+                    } else if (count($nameParts) >= 2) {
+                        // ถ้าค้นหาด้วยหลายคำ สมมติว่าคำแรกเป็นชื่อ คำที่สองเป็นนามสกุล
+                        $nameQuery->where(function ($q) use ($nameParts) {
+                            $q->where('fname', 'like', "%{$nameParts[0]}%")
+                                ->where('lname', 'like', "%{$nameParts[1]}%");
+                        });
+                    }
+
+                    $nameMatches = $nameQuery->get();
+                    return response()->json([
+                        'success' => true,
+                        'data' => $nameMatches,
+                        'search_type' => 'name'
+                    ]);
+
+                default:
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'รูปแบบการค้นหาไม่ถูกต้อง'
+                    ], 400);
+            }
         } catch (\Exception $e) {
             Log::error('Error searching for patient: ' . $e->getMessage());
             return response()->json([
@@ -223,9 +315,29 @@ class AppointmentController extends Controller
 
         return response()->json($timeSlots);
     }
-
     public function store(Request $request)
     {
+        // กำหนดข้อความความผิดพลาดเป็นภาษาไทย
+        $messages = [
+            'time_slot_id.required' => 'กรุณาเลือกช่วงเวลา',
+            'time_slot_id.exists' => 'ช่วงเวลาที่เลือกไม่ถูกต้อง',
+            'notes.string' => 'หมายเหตุต้องเป็นข้อความ',
+            'patient_cid.required' => 'กรุณาระบุเลขบัตรประชาชน',
+            'patient_cid.string' => 'เลขบัตรประชาชนต้องเป็นตัวอักษร',
+            'patient_hn.string' => 'HN ต้องเป็นตัวอักษร',
+            'patient_pname.string' => 'คำนำหน้าต้องเป็นข้อความ',
+            'patient_fname.string' => 'ชื่อต้องเป็นข้อความ',
+            'patient_lname.string' => 'นามสกุลต้องเป็นข้อความ',
+            'patient_birthdate.date' => 'วันเกิดต้องเป็นวันที่ที่ถูกต้อง',
+            'patient_age.integer' => 'อายุต้องเป็นตัวเลข',
+            'patient_age.min' => 'อายุต้องไม่น้อยกว่า 0 ปี',
+            'patient_age.max' => 'อายุต้องไม่มากกว่า 120 ปี',
+            'manual_pname.required_if' => 'กรุณาเลือกคำนำหน้า',
+            'manual_fname.required_if' => 'กรุณากรอกชื่อ',
+            'manual_lname.required_if' => 'กรุณากรอกนามสกุล',
+            'manual_age.required_if' => 'กรุณาระบุอายุ',
+        ];
+
         $validated = $request->validate([
             'time_slot_id' => 'required|exists:time_slots,id',
             'notes' => 'nullable|string',
@@ -240,13 +352,40 @@ class AppointmentController extends Controller
             'manual_fname' => 'required_if:patient_fname,null',
             'manual_lname' => 'required_if:patient_lname,null',
             'manual_age' => 'required_if:patient_birthdate,null',
-        ]);
+        ], $messages);
 
+        // ส่วนที่เหลือของโค้ด store method ยังคงเดิม
         $timeSlot = TimeSlot::findOrFail($validated['time_slot_id']);
 
         // ตรวจสอบว่า time slot ยังว่างหรือไม่
         if (!$timeSlot->isAvailable()) {
             return back()->withErrors(['time_slot_id' => 'ช่วงเวลานี้ไม่ว่างแล้ว โปรดเลือกช่วงเวลาอื่น'])
+                ->withInput();
+        }
+
+        // ตรวจสอบว่าผู้ป่วยคนนี้มีการนัดในช่วงเวลาเดียวกันแล้วหรือไม่
+        $existingAppointment = Appointment::where('patient_cid', $validated['patient_cid'])
+            ->where('time_slot_id', $validated['time_slot_id'])
+            ->where('status', '!=', 'cancelled')
+            ->first();
+
+        if ($existingAppointment) {
+            return back()->withErrors(['time_slot_id' => 'ผู้ป่วยนี้มีการนัดหมายในช่วงเวลานี้แล้ว'])
+                ->withInput();
+        }
+
+        // ตรวจสอบว่าผู้ป่วยคนนี้มีการนัดในวันเดียวกันกับคลินิกเดียวกันแล้วหรือไม่
+        $sameDay = Carbon::parse($timeSlot->date)->format('Y-m-d');
+        $sameDayAppointment = Appointment::whereHas('timeSlot', function ($query) use ($sameDay, $timeSlot) {
+            $query->whereDate('date', $sameDay);
+        })
+            ->where('patient_cid', $validated['patient_cid'])
+            ->where('clinic_id', $timeSlot->clinic_id)
+            ->where('status', '!=', 'cancelled')
+            ->first();
+
+        if ($sameDayAppointment) {
+            return back()->withErrors(['time_slot_id' => 'ผู้ป่วยนี้มีการนัดหมายในคลินิกนี้ในวันเดียวกันแล้ว'])
                 ->withInput();
         }
 
@@ -265,13 +404,6 @@ class AppointmentController extends Controller
         DB::beginTransaction();
 
         try {
-            // บันทึกหรืออัปเดตข้อมูลผู้ป่วยในฐานข้อมูล (ถ้ามีการเก็บข้อมูลผู้ป่วย)
-            // ตัวอย่าง:
-            // $patient = Patient::updateOrCreate(
-            //    ['cid' => $patientData['cid']],
-            //    $patientData
-            // );
-
             // สร้าง appointment
             $appointment = Appointment::create([
                 'user_id' => Auth::id(),
@@ -306,7 +438,6 @@ class AppointmentController extends Controller
                 ->withInput();
         }
     }
-
     public function show(Appointment $appointment)
     {
         // Check if the user is admin or the appointment belongs to the user
@@ -355,6 +486,26 @@ class AppointmentController extends Controller
                 ->with('error', 'สามารถแก้ไขได้เฉพาะการนัดหมายที่มีสถานะรอดำเนินการเท่านั้น');
         }
 
+        // กำหนดข้อความความผิดพลาดเป็นภาษาไทย
+        $messages = [
+            'time_slot_id.required' => 'กรุณาเลือกช่วงเวลา',
+            'time_slot_id.exists' => 'ช่วงเวลาที่เลือกไม่ถูกต้อง',
+            'notes.string' => 'หมายเหตุต้องเป็นข้อความ',
+            'patient_cid.required' => 'กรุณาระบุเลขบัตรประชาชน',
+            'patient_cid.string' => 'เลขบัตรประชาชนต้องเป็นตัวอักษร',
+            'patient_hn.string' => 'HN ต้องเป็นตัวอักษร',
+            'patient_pname.required' => 'กรุณาเลือกคำนำหน้า',
+            'patient_pname.string' => 'คำนำหน้าต้องเป็นข้อความ',
+            'patient_fname.required' => 'กรุณากรอกชื่อ',
+            'patient_fname.string' => 'ชื่อต้องเป็นข้อความ',
+            'patient_lname.required' => 'กรุณากรอกนามสกุล',
+            'patient_lname.string' => 'นามสกุลต้องเป็นข้อความ',
+            'patient_birthdate.date' => 'วันเกิดต้องเป็นวันที่ที่ถูกต้อง',
+            'patient_age.integer' => 'อายุต้องเป็นตัวเลข',
+            'patient_age.min' => 'อายุต้องไม่น้อยกว่า 0 ปี',
+            'patient_age.max' => 'อายุต้องไม่มากกว่า 120 ปี',
+        ];
+
         $validated = $request->validate([
             'time_slot_id' => 'required|exists:time_slots,id',
             'notes' => 'nullable|string',
@@ -365,7 +516,7 @@ class AppointmentController extends Controller
             'patient_lname' => 'required|string',
             'patient_birthdate' => 'nullable|date',
             'patient_age' => 'nullable|integer|min:0|max:120',
-        ]);
+        ], $messages);
 
         // ถ้ามีการเปลี่ยนช่วงเวลา
         if ($appointment->time_slot_id != $validated['time_slot_id']) {
@@ -375,6 +526,34 @@ class AppointmentController extends Controller
             // ตรวจสอบว่าช่วงเวลาใหม่ยังว่างหรือไม่
             if (!$newTimeSlot->isAvailable()) {
                 return back()->withErrors(['time_slot_id' => 'ช่วงเวลานี้ไม่ว่างแล้ว กรุณาเลือกช่วงเวลาอื่น'])
+                    ->withInput();
+            }
+
+            // ตรวจสอบว่าผู้ป่วยคนนี้มีการนัดในช่วงเวลาเดียวกันแล้วหรือไม่
+            $existingAppointment = Appointment::where('patient_cid', $validated['patient_cid'])
+                ->where('time_slot_id', $validated['time_slot_id'])
+                ->where('id', '!=', $appointment->id) // ไม่นับการนัดหมายปัจจุบัน
+                ->where('status', '!=', 'cancelled')
+                ->first();
+
+            if ($existingAppointment) {
+                return back()->withErrors(['time_slot_id' => 'ผู้ป่วยนี้มีการนัดหมายในช่วงเวลานี้แล้ว'])
+                    ->withInput();
+            }
+
+            // ตรวจสอบว่าผู้ป่วยคนนี้มีการนัดในวันเดียวกันกับคลินิกเดียวกันแล้วหรือไม่
+            $sameDay = Carbon::parse($newTimeSlot->date)->format('Y-m-d');
+            $sameDayAppointment = Appointment::whereHas('timeSlot', function ($query) use ($sameDay) {
+                $query->whereDate('date', $sameDay);
+            })
+                ->where('patient_cid', $validated['patient_cid'])
+                ->where('clinic_id', $newTimeSlot->clinic_id)
+                ->where('id', '!=', $appointment->id) // ไม่นับการนัดหมายปัจจุบัน
+                ->where('status', '!=', 'cancelled')
+                ->first();
+
+            if ($sameDayAppointment) {
+                return back()->withErrors(['time_slot_id' => 'ผู้ป่วยนี้มีการนัดหมายในคลินิกนี้ในวันเดียวกันแล้ว'])
                     ->withInput();
             }
 
@@ -463,47 +642,107 @@ class AppointmentController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
+        // กำหนดข้อความความผิดพลาดเป็นภาษาไทย
+        $messages = [
+            'status.required' => 'กรุณาเลือกสถานะ',
+            'status.in' => 'สถานะที่เลือกไม่ถูกต้อง',
+        ];
+
         $validated = $request->validate([
             'status' => 'required|in:pending,confirmed,cancelled,completed',
-        ]);
+        ], $messages);
+
         $oldStatus = $appointment->getOriginal('status');
         $newStatus = $validated['status'];
 
+        // ตรวจสอบการเปลี่ยนสถานะที่ไม่ถูกต้อง
+        $invalidTransitions = [
+            'cancelled' => ['pending'], // ไม่อนุญาตให้เปลี่ยนจาก cancelled เป็น pending
+            'completed' => ['pending'], // ไม่อนุญาตให้เปลี่ยนจาก completed เป็น pending
+        ];
+
+        // ตรวจสอบว่าการเปลี่ยนสถานะนี้ถูกต้องหรือไม่
+        if (isset($invalidTransitions[$oldStatus]) && in_array($newStatus, $invalidTransitions[$oldStatus])) {
+            return redirect()->route('appointments.show', $appointment)
+                ->with('error', "ไม่สามารถเปลี่ยนสถานะจาก '{$oldStatus}' เป็น '{$newStatus}' ได้");
+        }
+
+        // ถ้าเป็นการเปลี่ยนเป็นสถานะที่เหมือนเดิม ไม่ต้องทำอะไร
+        if ($oldStatus === $newStatus) {
+            return redirect()->route('appointments.show', $appointment)
+                ->with('info', 'สถานะการนัดหมายยังคงเดิม');
+        }
+
         // If changing to cancelled and was previously not cancelled, decrement booked count
-        if ($validated['status'] === 'cancelled' && $appointment->status !== 'cancelled') {
+        if ($newStatus === 'cancelled' && $oldStatus !== 'cancelled') {
             $appointment->timeSlot->decrement('booked_appointments');
         }
         // If changing from cancelled to something else, increment booked count
-        else if ($appointment->status === 'cancelled' && $validated['status'] !== 'cancelled') {
+        else if ($oldStatus === 'cancelled' && $newStatus !== 'cancelled') {
             $appointment->timeSlot->increment('booked_appointments');
         }
 
-        $appointment->update(['status' => $validated['status']]);
-        if ($oldStatus !== $newStatus) {
-            TelegramNotificationService::notifyUserStatusUpdate($appointment, $oldStatus, $newStatus);
-
-            // If status changed to confirmed, also notify admins
-            if ($newStatus === 'confirmed') {
-                // Optional: Notify admins when an appointment is confirmed
-                $adminMessage = "<b>✅ การนัดหมายได้รับการยืนยันแล้ว</b>\n\n" .
-                    "🏥 <b>คลินิก:</b> {$appointment->clinic->name}\n" .
-                    "👨‍⚕️ <b>แพทย์:</b> {$appointment->doctor->name}\n" .
-                    "📅 <b>วันที่:</b> " . \Carbon\Carbon::parse($appointment->timeSlot->date)->thaidate() . "\n" .
-                    "⏰ <b>เวลา:</b> " . \Carbon\Carbon::parse($appointment->timeSlot->start_time)->format('H:i') . " - " .
-                    \Carbon\Carbon::parse($appointment->timeSlot->end_time)->format('H:i') . " น.\n" .
-                    "👤 <b>ผู้ป่วย:</b> {$appointment->patient_pname} {$appointment->patient_fname} {$appointment->patient_lname}\n" .
-                    "🔗 <a href='" . route('appointments.show', $appointment) . "'>ดูรายละเอียดเพิ่มเติม</a>";
-
-                TelegramNotificationService::sendMessage(
-                    $adminMessage,
-                    null,
-                    null,
-                    'appointment_confirmed',
-                    $appointment->id
-                );
+        // ตรวจสอบเงื่อนไขเพิ่มเติมตามสถานะใหม่
+        if ($newStatus === 'completed' && $oldStatus !== 'confirmed') {
+            // อาจต้องตรวจสอบว่าการนัดหมายต้องผ่านสถานะ 'confirmed' ก่อนถึงจะเป็น 'completed' ได้
+            if ($oldStatus !== 'pending') {
+                return redirect()->route('appointments.show', $appointment)
+                    ->with('error', 'การนัดหมายต้องผ่านการยืนยัน (confirmed) ก่อนที่จะเสร็จสิ้น');
             }
         }
-        return redirect()->route('appointments.show', $appointment)
-            ->with('success', 'Appointment status updated successfully.');
+
+        // ใช้ Transaction เพื่อความปลอดภัยของข้อมูล
+        DB::beginTransaction();
+
+        try {
+            $appointment->update(['status' => $newStatus]);
+
+            if ($oldStatus !== $newStatus) {
+                // แจ้งเตือนผู้ใช้เมื่อมีการเปลี่ยนสถานะ
+                TelegramNotificationService::notifyUserStatusUpdate($appointment, $oldStatus, $newStatus);
+
+                // If status changed to confirmed, also notify admins
+                if ($newStatus === 'confirmed') {
+                    // Optional: Notify admins when an appointment is confirmed
+                    $adminMessage = "<b>✅ การนัดหมายได้รับการยืนยันแล้ว</b>\n\n" .
+                        "🏥 <b>คลินิก:</b> {$appointment->clinic->name}\n" .
+                        "👨‍⚕️ <b>แพทย์:</b> {$appointment->doctor->name}\n" .
+                        "📅 <b>วันที่:</b> " . \Carbon\Carbon::parse($appointment->timeSlot->date)->thaidate() . "\n" .
+                        "⏰ <b>เวลา:</b> " . \Carbon\Carbon::parse($appointment->timeSlot->start_time)->format('H:i') . " - " .
+                        \Carbon\Carbon::parse($appointment->timeSlot->end_time)->format('H:i') . " น.\n" .
+                        "👤 <b>ผู้ป่วย:</b> {$appointment->patient_pname} {$appointment->patient_fname} {$appointment->patient_lname}\n" .
+                        "🔗 <a href='" . route('appointments.show', $appointment) . "'>ดูรายละเอียดเพิ่มเติม</a>";
+
+                    TelegramNotificationService::sendMessage(
+                        $adminMessage,
+                        null,
+                        null,
+                        'appointment_confirmed',
+                        $appointment->id
+                    );
+                }
+            }
+
+            DB::commit();
+
+            // แสดงข้อความสำเร็จที่แตกต่างกันตามสถานะ
+            // แสดงข้อความสำเร็จที่แตกต่างกันตามสถานะ
+            $statusMessages = [
+                'pending' => 'สถานะการนัดหมายถูกเปลี่ยนเป็น "รอดำเนินการ" เรียบร้อยแล้ว',
+                'confirmed' => 'การนัดหมายได้รับการยืนยันเรียบร้อยแล้ว',
+                'cancelled' => 'การนัดหมายถูกยกเลิกเรียบร้อยแล้ว',
+                'completed' => 'การนัดหมายเสร็จสิ้นเรียบร้อยแล้ว',
+            ];
+
+            $successMessage = $statusMessages[$newStatus] ?? 'อัพเดตสถานะการนัดหมายเรียบร้อยแล้ว';
+
+            return redirect()->route('appointments.show', $appointment)
+                ->with('success', $successMessage);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error updating appointment status: ' . $e->getMessage());
+            return redirect()->route('appointments.show', $appointment)
+                ->with('error', 'เกิดข้อผิดพลาดในการอัพเดตสถานะ: ' . $e->getMessage());
+        }
     }
 }

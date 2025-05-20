@@ -14,16 +14,16 @@
     -->
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
 
-    <title>{{ config('app.name') }} - LOGIN</title>
+    <title>ระบบนัดออนไลน์-โรงพยาบาลหนองหาน</title>
 
-    <meta name="description" content="{{ config('app.name') }} - LOGIN">
+    <meta name="description" content="ระบบนัดออนไลน์-โรงพยาบาลหนองหาน">
     <meta name="author" content="pixelcave">
     <meta name="robots" content="index, follow">
 
     <!-- Open Graph Meta -->
-    <meta property="og:title" content="{{ config('app.name') }} - LOGIN">
+    <meta property="og:title" content="ระบบนัดออนไลน์-โรงพยาบาลหนองหาน">
     <meta property="og:site_name" content="Codebase">
-    <meta property="og:description" content="{{ config('app.name') }} - LOGIN">
+    <meta property="og:description" content="ระบบนัดออนไลน์-โรงพยาบาลหนองหาน">
     <meta property="og:type" content="website">
     <meta property="og:url" content="">
     <meta property="og:image" content="">
@@ -62,7 +62,7 @@
                             <div class="py-4 text-center">
                                 <a class="link-fx fw-bold" href="/">
                                     <i class="fa fa-fire"></i>
-                                    <span class="fs-4 text-body-color">{{ config('app.name', 'Laravel') }}</span>
+                                    <span class="fs-4 text-body-color">ระบบนัดออนไลน์-โรงพยาบาลหนองหาน</span>
                                 </a>
                                 <h1 class="h3 fw-bold mt-4 mb-1">
                                     ยินดีตอนรับ

@@ -39,9 +39,20 @@
 
       // เมื่อคลิกปุ่มค้นหา
       $('#search-patient-btn').click(function() {
-        const cid = $('#cid').val();
-        if (!cid) {
-          alert('กรุณากรอกเลขบัตรประชาชน');
+        const searchTerm = $('#search-term').val();
+        const searchType = $('#search-type').val();
+
+        if (!searchTerm) {
+          alert('กรุณากรอกคำค้นหา');
+          return;
+        }
+
+        // ตรวจสอบความยาวของคำค้นหา (ควรมีอย่างน้อย 2 ตัวอักษร)
+        if (searchTerm.length < 13 && searchType == "cid") {
+          alert('กรุณากรอกคำค้นหาอย่างน้อย 13 ตัวอักษร');
+          return;
+        } else if (searchTerm.length < 7 && searchType == "hn") {
+          alert('กรุณากรอกคำค้นหาอย่างน้อย 7 ตัวอักษร');
           return;
         }
 
@@ -56,58 +67,154 @@
           type: "GET",
           dataType: "json",
           data: {
-            cid: cid
+            search_term: searchTerm,
+            search_type: searchType
           },
           success: function(response) {
             if (response.success && response.data.length > 0) {
               // พบข้อมูลผู้ป่วย
-              const patient = response.data[0];
+              const patients = response.data;
+              let html = '<div class="alert alert-success">';
 
-              // คำนวณอายุ
-              let age = '';
-              if (patient.birthdate) {
-                age = moment().diff(moment(patient.birthdate), 'years');
+              if (patients.length === 1) {
+                // กรณีพบข้อมูลผู้ป่วยเพียงคนเดียว
+                const patient = patients[0];
+
+                // คำนวณอายุ
+                let age = '';
+                if (patient.birthdate) {
+                  age = moment().diff(moment(patient.birthdate), 'years');
+                } else {
+                  age = 'ไม่มีข้อมูล';
+                }
+
+                html += `
+                            <h5>พบข้อมูลผู้ป่วย HN: ${patient.patient_hn || 'ไม่มีข้อมูล'}</h5>
+                            <p>
+                                ชื่อ-นามสกุล: ${patient.pname} ${patient.fname} ${patient.lname}<br>
+                                เลขบัตรประชาชน: ${patient.cid || 'ไม่มีข้อมูล'}<br>
+                                อายุ: ${age} ปี
+                            </p>
+                            <button type="button" class="btn btn-primary btn-sm select-patient" 
+                                data-cid="${patient.cid}"
+                                data-hn="${patient.patient_hn || ''}"
+                                data-pname="${patient.pname || ''}"
+                                data-fname="${patient.fname || ''}"
+                                data-lname="${patient.lname || ''}"
+                                data-birthdate="${patient.birthdate || ''}"
+                                data-age="${age !== 'ไม่มีข้อมูล' ? age : ''}">
+                                เลือกผู้ป่วยนี้
+                            </button>
+                        `;
               } else {
-                age = 'ไม่มีข้อมูล';
+                // กรณีพบข้อมูลผู้ป่วยหลายคน
+                html += `<h5>พบข้อมูลผู้ป่วย ${patients.length} คน</h5>`;
+                html += '<div class="table-responsive"><table class="table table-sm table-bordered">';
+                html +=
+                  '<thead><tr><th>HN</th><th>เลขบัตรประชาชน</th><th>ชื่อ-นามสกุล</th><th>การจัดการ</th></tr></thead>';
+                html += '<tbody>';
+
+                patients.forEach(function(patient) {
+                  // คำนวณอายุ
+                  let age = '';
+                  if (patient.birthdate) {
+                    age = moment().diff(moment(patient.birthdate), 'years');
+                  } else {
+                    age = 'ไม่มีข้อมูล';
+                  }
+
+                  html += `<tr>
+                                <td>${patient.patient_hn || 'ไม่มีข้อมูล'}</td>
+                                <td>${patient.cid || 'ไม่มีข้อมูล'}</td>
+                                <td>${patient.pname} ${patient.fname} ${patient.lname}</td>
+                                <td>
+                                    <button type="button" class="btn btn-primary btn-sm select-patient" 
+                                        data-cid="${patient.cid}"
+                                        data-hn="${patient.patient_hn || ''}"
+                                        data-pname="${patient.pname || ''}"
+                                        data-fname="${patient.fname || ''}"
+                                        data-lname="${patient.lname || ''}"
+                                        data-birthdate="${patient.birthdate || ''}"
+                                        data-age="${age !== 'ไม่มีข้อมูล' ? age : ''}">
+                                        เลือก
+                                    </button>
+                                </td>
+                            </tr>`;
+                });
+
+                html += '</tbody></table></div>';
               }
 
-              // แสดงข้อมูลผู้ป่วยที่พบ
-              let patientInfo = `
+              html += '</div>';
+              $('#search-result').html(html);
+
+              // เมื่อคลิกปุ่มเลือกผู้ป่วย
+              $('.select-patient').click(function() {
+                const patientData = $(this).data();
+
+                // เก็บข้อมูลผู้ป่วยใน hidden fields
+                $('#patient_cid').val(patientData.cid);
+                $('#patient_hn').val(patientData.hn);
+                $('#patient_pname').val(patientData.pname);
+                $('#patient_fname').val(patientData.fname);
+                $('#patient_lname').val(patientData.lname);
+                $('#patient_birthdate').val(patientData.birthdate);
+                $('#patient_age').val(patientData.age);
+
+                // แสดงข้อมูลที่เลือก
+                $('#search-result').html(`
                             <div class="alert alert-success">
-                                <h5>พบข้อมูลผู้ป่วย HN: ${patient.patient_hn || 'ไม่มีข้อมูล'}</h5>
+                                <h5>ข้อมูลผู้ป่วยที่เลือก</h5>
                                 <p>
-                                    ชื่อ-นามสกุล: ${patient.pname} ${patient.fname} ${patient.lname}<br>
-                                    อายุ: ${age} ปี
+                                    ชื่อ-นามสกุล: ${patientData.pname} ${patientData.fname} ${patientData.lname}<br>
+                                    เลขบัตรประชาชน: ${patientData.cid}<br>
+                                    HN: ${patientData.hn || 'ไม่มีข้อมูล'}<br>
+                                    อายุ: ${patientData.age || 'ไม่มีข้อมูล'} ปี
                                 </p>
+                                <button type="button" class="btn btn-secondary btn-sm" id="clear-patient">
+                                    เปลี่ยนผู้ป่วย
+                                </button>
                             </div>
-                        `;
-              $('#search-result').html(patientInfo);
+                        `);
 
-              // เก็บข้อมูลผู้ป่วยใน hidden fields
-              $('#patient_cid').val(patient.cid);
-              $('#patient_hn').val(patient.patient_hn || '');
-              $('#patient_pname').val(patient.pname || '');
-              $('#patient_fname').val(patient.fname || '');
-              $('#patient_lname').val(patient.lname || '');
-              $('#patient_birthdate').val(patient.birthdate || '');
-              $('#patient_age').val(age !== 'ไม่มีข้อมูล' ? age : '');
+                // ซ่อนฟอร์มกรอกข้อมูลผู้ป่วย
+                $('#patient-info-form').hide();
 
-              // ซ่อนฟอร์มกรอกข้อมูลผู้ป่วย
-              $('#patient-info-form').hide();
+                // เมื่อคลิกปุ่มเปลี่ยนผู้ป่วย
+                $('#clear-patient').click(function() {
+                  // ล้างข้อมูลผู้ป่วยใน hidden fields
+                  $('#patient_cid').val('');
+                  $('#patient_hn').val('');
+                  $('#patient_pname').val('');
+                  $('#patient_fname').val('');
+                  $('#patient_lname').val('');
+                  $('#patient_birthdate').val('');
+                  $('#patient_age').val('');
+
+                  // ล้างผลการค้นหา
+                  $('#search-result').html('');
+                  $('#search-term').val('');
+                });
+              });
             } else {
               // ไม่พบข้อมูลผู้ป่วย
               $('#search-result').html(`
-                            <div class="alert alert-warning">
-                                <h5>ไม่พบข้อมูลผู้ป่วย</h5>
-                                <p>กรุณากรอกข้อมูลผู้ป่วยด้านล่าง</p>
-                            </div>
-                        `);
+                        <div class="alert alert-warning">
+                            <h5>ไม่พบข้อมูลผู้ป่วย</h5>
+                            <p>กรุณากรอกข้อมูลผู้ป่วยด้านล่าง</p>
+                        </div>
+                    `);
 
               // แสดงฟอร์มกรอกข้อมูลผู้ป่วย
               $('#patient-info-form').show();
 
-              // เก็บ cid ที่ค้นหาใน hidden field
-              $('#patient_cid').val(cid);
+              // ตั้งค่า cid ตามการค้นหา (ถ้าเป็นการค้นหาด้วย cid)
+              if (searchType === 'cid') {
+                $('#patient_cid').val(searchTerm);
+              } else {
+                $('#patient_cid').val('');
+              }
+
               $('#manual_pname').val('');
               $('#manual_fname').val('');
               $('#manual_lname').val('');
@@ -117,11 +224,11 @@
           error: function(xhr, status, error) {
             console.error('AJAX error:', error, xhr);
             $('#search-result').html(`
-                        <div class="alert alert-danger">
-                            <h5>เกิดข้อผิดพลาดในการค้นหา</h5>
-                            <p>${error}</p>
-                        </div>
-                    `);
+                    <div class="alert alert-danger">
+                        <h5>เกิดข้อผิดพลาดในการค้นหา</h5>
+                        <p>${error}</p>
+                    </div>
+                `);
 
             // แสดงฟอร์มกรอกข้อมูลผู้ป่วย
             $('#patient-info-form').show();
@@ -710,20 +817,29 @@
             <h3 class="block-title text-white">ข้อมูลผู้ป่วย</h3>
           </div>
           <div class="block-content">
-            <div class="row mb-4">
-              <div class="col-md-8">
-                <div class="mb-4">
-                  <label class="form-label fw-bold text-primary" for="cid">เลขบัตรประชาชน <span
-                      class="text-danger">*</span></label>
-                  <div class="input-group">
-                    <input type="text" class="form-control" id="cid" name="cid"
-                      placeholder="กรอกเลขบัตรประชาชน 13 หลัก" maxlength="13" value="{{ old('cid') }}">
-                    <button type="button" class="btn btn-primary" id="search-patient-btn">
-                      <i class="fa fa-search me-1"></i> ค้นหา
-                    </button>
-                  </div>
+            <div class="row mb-3">
+              <div class="col-md-3">
+                <select class="form-select" id="search-type">
+                  <option value="cid">เลขบัตรประชาชน</option>
+                  <option value="hn">HN</option>
+
+                </select>
+              </div>
+              <div class="col-md-9">
+                <div class="input-group">
+                  <input type="text" class="form-control" id="search-term" placeholder="ระบุคำค้นหา">
+                  <button type="button" class="btn btn-primary" id="search-patient-btn">
+                    <i class="fa fa-search me-1"></i> ค้นหา
+                  </button>
                 </div>
               </div>
+            </div>
+            <div class="form-text mb-3">
+              <ul class="mb-0">
+                <li>ค้นหาด้วยเลขบัตรประชาชน: กรอกเลข 13 หลัก หรือบางส่วนของเลขบัตร</li>
+                <li>ค้นหาด้วย HN: กรอกหมายเลข HN</li>
+
+              </ul>
             </div>
             <div id="patient-info-display" style="display: none;">
               <div class="alert alert-success">

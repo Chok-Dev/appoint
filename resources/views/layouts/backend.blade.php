@@ -159,7 +159,7 @@
             <a class="link-fx fw-bold tracking-wide mx-auto" href="/">
               <span class="smini-hidden">
                 <i class="fa fa-fire text-primary"></i>
-                <span class="fs-4 text-dual">ระบบนัด</span><span class="fs-4 text-primary">NHH</span>
+                <span class="fs-4 text-dual">ระบบนัดออนไลน์</span>
               </span>
             </a>
           </div>
@@ -206,11 +206,12 @@
                     <i class="far fa-fw fa-moon" data-dark-mode-icon></i>
                   </a>
                 </li>
-                <li class="list-inline-item">
-                  <a class="link-fx text-dual" href="javascript:void(0)">
+                {{-- <li class="list-inline-item">
+                 
+                  <a class="link-fx text-dual" href="">
                     <i class="fa fa-sign-out-alt"></i>
                   </a>
-                </li>
+                </li> --}}
               </ul>
             </div>
             <!-- END Visible only in normal mode -->
