@@ -58,9 +58,7 @@
       font-weight: 600;
     }
 
-    .holiday-background {
-      
-    }
+    .holiday-background {}
 
     .holiday-dot {
       position: relative;
@@ -80,7 +78,7 @@
 @endsection
 
 @section('js')
-  <script src="{{ asset('js/plugins/fullcalendar/index.global.min.js')}}"></script>
+  <script src="{{ asset('js/plugins/fullcalendar/index.global.min.js') }}"></script>
 
 
   <script>
@@ -105,6 +103,13 @@
           left: 'prev,next today',
           center: 'title',
           right: 'dayGridMonth,timeGridWeek,listMonth'
+        },
+        buttonText: {
+          today: 'วันปัจจุบัน',
+          month: 'เดือน',
+          week: 'สัปดาห์',
+          day: 'วัน',
+          list: 'รายการ'
         },
         locale: 'th',
         timeZone: 'Asia/Bangkok',
@@ -143,7 +148,8 @@
                     <strong>คลินิก:</strong> ${info.event.extendedProps.clinic}<br>
                     <strong>แพทย์:</strong> ${info.event.extendedProps.doctor}<br>
                     <strong>จำนวนที่นัดได้:</strong> ${info.event.extendedProps.maxAppointments}<br>
-                    <strong>จำนวนที่นัดไปแล้ว:</strong> ${info.event.extendedProps.bookedAppointments}
+                    <strong>จำนวนที่นัดไปแล้ว:</strong> ${info.event.extendedProps.bookedAppointments}<br>
+                    <strong>เวลา:</strong> ${info.event.extendedProps.timeslot}
                 `;
 
           // If inactive, add status to tooltip
@@ -162,7 +168,7 @@
         dayCellDidMount: function(info) {
           // Mark holiday cells with a special class
           const date = info.date.toISOString().split('T')[0];
-          
+
           const isHoliday = @json($events).some(event =>
             event.classNames &&
             event.classNames.includes('holiday-event') &&

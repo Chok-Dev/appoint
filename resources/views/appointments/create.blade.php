@@ -3,7 +3,6 @@
 @section('css')
   <link rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.47/css/bootstrap-datetimepicker.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
   <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
 @endsection
 
@@ -207,11 +206,11 @@
             } else {
               // ไม่พบข้อมูลผู้ป่วย
               $('#search-result').html(`
-            <div class="alert alert-warning">
-                <h5>ไม่พบข้อมูลผู้ป่วย</h5>
-                <p>กรุณากรอกข้อมูลผู้ป่วยด้านล่าง</p>
-            </div>
-          `);
+                <div class="alert alert-warning">
+                    <h5>ไม่พบข้อมูลผู้ป่วย</h5>
+                    <p>กรุณากรอกข้อมูลผู้ป่วยด้านล่าง</p>
+                </div>
+              `);
 
               // แสดงฟอร์มกรอกข้อมูลผู้ป่วย
               $('#patient-info-form').show();
@@ -233,11 +232,11 @@
           error: function(xhr, status, error) {
             console.error('AJAX error:', error, xhr);
             $('#search-result').html(`
-          <div class="alert alert-danger">
-              <h5>เกิดข้อผิดพลาดในการค้นหา</h5>
-              <p>${error}</p>
-          </div>
-        `);
+              <div class="alert alert-danger">
+                  <h5>เกิดข้อผิดพลาดในการค้นหา</h5>
+                  <p>${error}</p>
+              </div>
+            `);
 
             // แสดงฟอร์มกรอกข้อมูลผู้ป่วย
             $('#patient-info-form').show();
@@ -249,7 +248,6 @@
       // ถ้ามีค่า old inputs เราต้องตั้งค่าเริ่มต้นและทำการโหลดข้อมูลที่เกี่ยวข้อง
 
       $(document).ready(function() {
-
         // ถ้ามีค่า group_id เดิม
         @if (old('group_id'))
           const oldGroupId = {{ old('group_id') }};
@@ -386,73 +384,82 @@
                                     const currentDate = "{{ old('date') }}";
                                     if (holidays[currentDate]) {
                                       $('#date-holiday-warning').remove(); // ลบข้อความเดิมถ้ามี
-                                      $(`<div id="date-holiday-warning" class="alert alert-warning mt-2">
-                                                                    <i class="fa fa-exclamation-triangle me-1"></i> วันที่คุณเลือกเป็นวันหยุด: ${holidays[currentDate].day_name}
-                                                                </div>`).insertAfter('#date');
-                                    }
+                                      $(`<div id="date-holiday-warning" class="alert alert-danger mt-2">
+                                        <i class="fa fa-exclamation-triangle me-1"></i> วันที่คุณเลือกเป็นวันหยุด: ${holidays[currentDate].day_name}
+                                        <br><strong>ไม่สามารถนัดหมายในวันหยุดได้ กรุณาเลือกวันอื่น</strong>
+                                      </div>`).insertAfter('#date');
 
-                                    // โหลดช่วงเวลาสำหรับวันที่เดิม
-                                    const oldDate = "{{ old('date') }}";
-                                    $('#time-loading').show();
-
-                                    $.ajax({
-                                      url: "{{ route('get.timeslots') }}",
-                                      type: "GET",
-                                      dataType: "json",
-                                      data: {
-                                        clinic_id: oldClinicId,
-                                        doctor_id: oldDoctorId,
-                                        date: oldDate
-                                      },
-                                      success: function(timeData) {
-                                        $('#time-loading').hide();
-
-                                        $('#time_slot_id').empty().append(
-                                          '<option value="">-- เลือกช่วงเวลา --</option>'
+                                      // ล้างและปิดใช้งานช่องเลือกเวลา
+                                      $('#time_slot_id').empty().append(
+                                        '<option value="">-- ไม่สามารถนัดหมายในวันหยุด --</option>'
                                         );
+                                      $('#time_slot_id').prop('disabled', true);
+                                      $('#time-message').hide();
+                                    } else {
+                                      // โหลดช่วงเวลาสำหรับวันที่เดิม
+                                      const oldDate = "{{ old('date') }}";
+                                      $('#time-loading').show();
 
-                                        if (timeData && timeData.length > 0) {
-                                          $.each(timeData, function(key, timeSlot) {
-                                            let startTime = timeSlot.start_time
-                                              .substr(0, 5);
-                                            let endTime = timeSlot.end_time.substr(0,
-                                              5);
-                                            let availableSlots = timeSlot
-                                              .max_appointments - timeSlot
-                                              .booked_appointments;
+                                      $.ajax({
+                                        url: "{{ route('get.timeslots') }}",
+                                        type: "GET",
+                                        dataType: "json",
+                                        data: {
+                                          clinic_id: oldClinicId,
+                                          doctor_id: oldDoctorId,
+                                          date: oldDate
+                                        },
+                                        success: function(timeData) {
+                                          $('#time-loading').hide();
 
-                                            $('#time_slot_id').append(
-                                              '<option value="' + timeSlot.id +
-                                              '">' + startTime + ' - ' + endTime +
-                                              ' (ว่าง ' + availableSlots +
-                                              ' คิว)</option>');
-                                          });
-
-                                          $('#time_slot_id').prop('disabled', false);
-
-                                          // ถ้ามีค่า time_slot_id เดิม
-                                          @if (old('time_slot_id'))
-                                            $('#time_slot_id').val(
-                                              {{ old('time_slot_id') }});
-                                          @endif
-                                        } else {
-                                          $('#time_slot_id').append(
-                                            '<option disabled>ไม่พบช่วงเวลาที่ว่าง</option>'
+                                          $('#time_slot_id').empty().append(
+                                            '<option value="">-- เลือกช่วงเวลา --</option>'
                                           );
-                                          $('#time_slot_id').prop('disabled', true);
+
+                                          if (timeData && timeData.length > 0) {
+                                            $.each(timeData, function(key, timeSlot) {
+                                              let startTime = timeSlot.start_time
+                                                .substr(0, 5);
+                                              let endTime = timeSlot.end_time.substr(
+                                                0,
+                                                5);
+                                              let availableSlots = timeSlot
+                                                .max_appointments - timeSlot
+                                                .booked_appointments;
+
+                                              $('#time_slot_id').append(
+                                                '<option value="' + timeSlot.id +
+                                                '">' + startTime + ' - ' + endTime +
+                                                ' (ว่าง ' + availableSlots +
+                                                ' คิว)</option>');
+                                            });
+
+                                            $('#time_slot_id').prop('disabled', false);
+
+                                            // ถ้ามีค่า time_slot_id เดิม
+                                            @if (old('time_slot_id'))
+                                              $('#time_slot_id').val(
+                                                {{ old('time_slot_id') }});
+                                            @endif
+                                          } else {
+                                            $('#time_slot_id').append(
+                                              '<option disabled>ไม่พบช่วงเวลาที่ว่าง</option>'
+                                            );
+                                            $('#time_slot_id').prop('disabled', true);
+                                            $('#time-message').html(
+                                              `<div class="alert alert-warning mt-2">ไม่พบช่วงเวลาที่ว่างในวันที่ ${oldDate}</div>`
+                                            ).show();
+                                          }
+                                        },
+                                        error: function(xhr, status, error) {
+                                          $('#time-loading').hide();
+                                          console.error('AJAX error:', error, xhr);
                                           $('#time-message').html(
-                                            `<div class="alert alert-warning mt-2">ไม่พบช่วงเวลาที่ว่างในวันที่ ${oldDate}</div>`
+                                            `<div class="alert alert-danger mt-2">เกิดข้อผิดพลาดในการโหลดข้อมูลช่วงเวลา: ${error}</div>`
                                           ).show();
                                         }
-                                      },
-                                      error: function(xhr, status, error) {
-                                        $('#time-loading').hide();
-                                        console.error('AJAX error:', error, xhr);
-                                        $('#time-message').html(
-                                          `<div class="alert alert-danger mt-2">เกิดข้อผิดพลาดในการโหลดข้อมูลช่วงเวลา: ${error}</div>`
-                                        ).show();
-                                      }
-                                    });
+                                      });
+                                    }
                                   @endif
 
                                   // ตั้งค่า event สำหรับเมื่อเลือกวันที่
@@ -462,14 +469,21 @@
 
                                     if (holidays[selectedDate]) {
                                       $('#date-holiday-warning').remove();
-                                      $(`<div id="date-holiday-warning" class="alert alert-warning mt-2">
-                                                                    <i class="fa fa-exclamation-triangle me-1"></i> วันที่คุณเลือกเป็นวันหยุด: ${holidays[selectedDate].day_name}
-                                                                </div>`).insertAfter('#date');
+                                      $(`<div id="date-holiday-warning" class="alert alert-danger mt-2">
+                                        <i class="fa fa-exclamation-triangle me-1"></i> วันที่คุณเลือกเป็นวันหยุด: ${holidays[selectedDate].day_name}
+                                        <br><strong>ไม่สามารถนัดหมายในวันหยุดได้ กรุณาเลือกวันอื่น</strong>
+                                      </div>`).insertAfter('#date');
+
+                                      // ล้างและปิดใช้งานช่องเลือกเวลา
+                                      $('#time_slot_id').empty().append(
+                                        '<option value="">-- ไม่สามารถนัดหมายในวันหยุด --</option>'
+                                        );
+                                      $('#time_slot_id').prop('disabled', true);
+                                      $('#time-message').hide();
                                     } else {
                                       $('#date-holiday-warning').remove();
+                                      loadTimeSlots();
                                     }
-
-                                    checkForTimeSlots();
                                   });
                                 }
                               },
@@ -700,17 +714,23 @@
                 $('#date').on('apply.daterangepicker', function(ev, picker) {
                   const selectedDate = picker.startDate.format('YYYY-MM-DD');
 
-                  // แสดงข้อความแจ้งเตือนถ้าเป็นวันหยุด
+                  // แสดงข้อความแจ้งเตือนถ้าเป็นวันหยุดและป้องกันการเลือกช่วงเวลา
                   if (holidays[selectedDate]) {
                     $('#date-holiday-warning').remove(); // ลบข้อความเดิมถ้ามี
-                    $(`<div id="date-holiday-warning" class="alert alert-warning mt-2">
-                <i class="fa fa-exclamation-triangle me-1"></i> วันที่คุณเลือกเป็นวันหยุด: ${holidays[selectedDate].day_name}
-              </div>`).insertAfter('#date');
+                    $(`<div id="date-holiday-warning" class="alert alert-danger mt-2">
+                      <i class="fa fa-exclamation-triangle me-1"></i> วันที่คุณเลือกเป็นวันหยุด: ${holidays[selectedDate].day_name}
+                      <br><strong>ไม่สามารถนัดหมายในวันหยุดได้ กรุณาเลือกวันอื่น</strong>
+                    </div>`).insertAfter('#date');
+
+                    // ล้างและปิดใช้งานช่องเลือกเวลา
+                    $('#time_slot_id').empty().append(
+                      '<option value="">-- ไม่สามารถนัดหมายในวันหยุด --</option>');
+                    $('#time_slot_id').prop('disabled', true);
+                    $('#time-message').hide();
                   } else {
                     $('#date-holiday-warning').remove();
+                    loadTimeSlots();
                   }
-
-                  checkForTimeSlots();
                 });
               } else {
                 // กรณีไม่มีวันที่ให้เลือก
@@ -730,7 +750,112 @@
       });
 
       // ตรวจสอบช่วงเวลาที่ว่าง
-      function checkForTimeSlots() {
+      function loadTimeSlots() {
+        const clinicId = $('#clinic_id').val();
+        const doctorId = $('#doctor_id').val();
+        const date = $('#date').val();
+
+        // สร้างคำขอ AJAX ใหม่เพื่อตรวจสอบวันหยุด (ถ้ายังไม่มีข้อมูลวันหยุด)
+        if (clinicId && doctorId && date) {
+          // ตรวจสอบก่อนว่าวันที่นี้เป็นวันหยุดหรือไม่
+          $.ajax({
+            url: "{{ route('get.available.dates') }}",
+            type: "GET",
+            dataType: "json",
+            data: {
+              clinic_id: clinicId,
+              doctor_id: doctorId
+            },
+            success: function(response) {
+              const holidays = response.holidays || {};
+              const selectedDate = date;
+
+              if (holidays[selectedDate]) {
+                // ถ้าเป็นวันหยุด ปิดการใช้งาน time slots
+                $('#date-holiday-warning').remove();
+                $(`<div id="date-holiday-warning" class="alert alert-danger mt-2">
+                  <i class="fa fa-exclamation-triangle me-1"></i> วันที่คุณเลือกเป็นวันหยุด: ${holidays[selectedDate].day_name}
+                  <br><strong>ไม่สามารถนัดหมายในวันหยุดได้ กรุณาเลือกวันอื่น</strong>
+                </div>`).insertAfter('#date');
+
+                // ล้างและปิดใช้งานช่องเลือกเวลา
+                $('#time_slot_id').empty().append('<option value="">-- ไม่สามารถนัดหมายในวันหยุด --</option>');
+                $('#time_slot_id').prop('disabled', true);
+                $('#time-message').hide();
+                return; // ออกจากฟังก์ชันทันที - ไม่ต้องโหลด time slots
+              } else {
+                // ถ้าไม่ใช่วันหยุด ลบข้อความเตือนและโหลด time slots ตามปกติ
+                $('#date-holiday-warning').remove();
+
+                // แสดง loading
+                $('#time-loading').show();
+                $('#time_slot_id').prop('disabled', true);
+                $('#time-message').hide();
+
+                // ใช้ AJAX แบบ jQuery เพื่อโหลด time slots
+                $.ajax({
+                  url: "{{ route('get.timeslots') }}",
+                  type: "GET",
+                  dataType: "json",
+                  data: {
+                    clinic_id: clinicId,
+                    doctor_id: doctorId,
+                    date: date
+                  },
+                  success: function(data) {
+                    $('#time-loading').hide();
+                    console.log('TimeSlots data:', data);
+                    $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>');
+
+                    if (data && data.length > 0) {
+                      $.each(data, function(key, timeSlot) {
+                        let startTime = timeSlot.start_time.substr(0, 5);
+                        let endTime = timeSlot.end_time.substr(0, 5);
+                        let availableSlots = timeSlot.max_appointments - timeSlot.booked_appointments;
+
+                        $('#time_slot_id').append('<option value="' + timeSlot.id + '">' + startTime +
+                          ' - ' +
+                          endTime + ' (ว่าง ' + availableSlots + ' คิว)</option>');
+                      });
+                      $('#time_slot_id').prop('disabled', false);
+                      $('#time-message').hide();
+                    } else {
+                      $('#time_slot_id').append('<option disabled>ไม่พบช่วงเวลาที่ว่าง</option>');
+                      $('#time_slot_id').prop('disabled', true);
+                      $('#time-message').html(
+                        `<div class="alert alert-warning mt-2">ไม่พบช่วงเวลาที่ว่างในวันที่ ${date}</div>`
+                        ).show();
+                    }
+                  },
+                  error: function(xhr, status, error) {
+                    $('#time-loading').hide();
+                    console.error('AJAX error:', error, xhr);
+                    $('#time_slot_id').empty().append(
+                      '<option value="">-- เกิดข้อผิดพลาดในการโหลดข้อมูล --</option>');
+                    $('#time_slot_id').prop('disabled', true);
+                    $('#time-message').html(
+                        `<div class="alert alert-danger mt-2">เกิดข้อผิดพลาดในการโหลดข้อมูลช่วงเวลา: ${error}</div>`
+                        )
+                      .show();
+                  }
+                });
+              }
+            },
+            error: function(xhr, status, error) {
+              console.error('Error checking holidays:', error);
+              // หากเกิดข้อผิดพลาดในการโหลดข้อมูลวันหยุด ให้โหลด time slots ตามปกติ
+              loadRegularTimeSlots();
+            }
+          });
+        } else {
+          $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>');
+          $('#time_slot_id').prop('disabled', true);
+          $('#time-message').hide();
+        }
+      }
+
+      // ฟังก์ชันโหลด time slots แบบปกติ (ใช้เมื่อไม่สามารถตรวจสอบวันหยุดได้)
+      function loadRegularTimeSlots() {
         const clinicId = $('#clinic_id').val();
         const doctorId = $('#doctor_id').val();
         const date = $('#date').val();
@@ -791,6 +916,74 @@
           $('#time-message').hide();
         }
       }
+
+      // เพิ่มการตรวจสอบฟอร์มก่อนส่ง
+      $('form').on('submit', function(e) {
+        // ตรวจสอบว่ามีการเลือกวันหยุดหรือไม่
+        const holidayWarning = $('#date-holiday-warning').length > 0;
+
+        if (holidayWarning) {
+          e.preventDefault();
+          alert('ไม่สามารถนัดหมายในวันหยุดได้ กรุณาเลือกวันอื่น');
+          return false;
+        }
+
+        // ตรวจสอบว่าได้กรอกเลขบัตรประชาชนหรือไม่
+        if ($('#patient_cid').val() === '') {
+          alert('กรุณาระบุเลขบัตรประชาชนผู้ป่วย');
+          e.preventDefault();
+          return false;
+        }
+
+        // ตรวจสอบว่าต้องใช้ข้อมูลจาก manual fields หรือไม่
+        if ($('#patient_fname').val() === '' || $('#patient_lname').val() === '') {
+          // ถ้าฟอร์มกรอกข้อมูลผู้ป่วยด้วยตนเองแสดงอยู่
+          if ($('#patient-info-form').is(':visible')) {
+            // ตรวจสอบข้อมูลในฟอร์ม
+            if ($('#manual_pname').val() === '') {
+              alert('กรุณาเลือกคำนำหน้าผู้ป่วย');
+              $('#manual_pname').focus();
+              e.preventDefault();
+              return false;
+            }
+
+            if ($('#manual_fname').val() === '') {
+              alert('กรุณากรอกชื่อผู้ป่วย');
+              $('#manual_fname').focus();
+              e.preventDefault();
+              return false;
+            }
+
+            if ($('#manual_lname').val() === '') {
+              alert('กรุณากรอกนามสกุลผู้ป่วย');
+              $('#manual_lname').focus();
+              e.preventDefault();
+              return false;
+            }
+
+            if ($('#manual_age').val() === '') {
+              alert('กรุณาระบุอายุผู้ป่วย');
+              $('#manual_age').focus();
+              e.preventDefault();
+              return false;
+            }
+
+            // โอนข้อมูลจาก manual fields ไปยัง patient fields
+            $('#patient_pname').val($('#manual_pname').val());
+            $('#patient_fname').val($('#manual_fname').val());
+            $('#patient_lname').val($('#manual_lname').val());
+            $('#patient_age').val($('#manual_age').val());
+            $('#patient_phone').val($('#manual_phone').val());
+          } else {
+            // ถ้าฟอร์มไม่ได้แสดง แต่ไม่มีข้อมูลผู้ป่วย
+            alert('กรุณาค้นหาและเลือกผู้ป่วย หรือกรอกข้อมูลผู้ป่วยด้วยตนเอง');
+            e.preventDefault();
+            return false;
+          }
+        }
+
+        return true;
+      });
     });
   </script>
 @endsection
@@ -982,7 +1175,7 @@
                     @error('clinic_id')
                       <span class="invalid-feedback">{{ $message }}</span>
                     @enderror
-                    <div id="doctor-loading" class="mt-2" style="display: none;">
+                    <div id="clinic-loading" class="mt-2" style="display: none;">
                       <div class="spinner-border spinner-border-sm text-primary" role="status">
                         <span class="visually-hidden">Loading...</span>
                       </div>

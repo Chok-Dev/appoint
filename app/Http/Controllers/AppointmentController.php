@@ -325,17 +325,17 @@ class AppointmentController extends Controller
             'patient_cid.required' => 'กรุณาระบุเลขบัตรประชาชน',
             'patient_cid.string' => 'เลขบัตรประชาชนต้องเป็นตัวอักษร',
             'patient_hn.string' => 'HN ต้องเป็นตัวอักษร',
+            'patient_pname.required' => 'กรุณาเลือกคำนำหน้า',
             'patient_pname.string' => 'คำนำหน้าต้องเป็นข้อความ',
+            'patient_fname.required' => 'กรุณากรอกชื่อ',
             'patient_fname.string' => 'ชื่อต้องเป็นข้อความ',
+            'patient_lname.required' => 'กรุณากรอกนามสกุล',
             'patient_lname.string' => 'นามสกุลต้องเป็นข้อความ',
             'patient_birthdate.date' => 'วันเกิดต้องเป็นวันที่ที่ถูกต้อง',
+            'patient_age.required' => 'กรุณาระบุอายุ',
             'patient_age.integer' => 'อายุต้องเป็นตัวเลข',
             'patient_age.min' => 'อายุต้องไม่น้อยกว่า 0 ปี',
             'patient_age.max' => 'อายุต้องไม่มากกว่า 120 ปี',
-            'manual_pname.required_if' => 'กรุณาเลือกคำนำหน้า',
-            'manual_fname.required_if' => 'กรุณากรอกชื่อ',
-            'manual_lname.required_if' => 'กรุณากรอกนามสกุล',
-            'manual_age.required_if' => 'กรุณาระบุอายุ',
             'patient_phone.string' => 'เบอร์โทรศัพท์ต้องเป็นข้อความ',
             'patient_phone.max' => 'เบอร์โทรศัพท์ต้องไม่เกิน 20 ตัวอักษร',
         ];
@@ -345,20 +345,36 @@ class AppointmentController extends Controller
             'notes' => 'nullable|string',
             'patient_cid' => 'required|string',
             'patient_hn' => 'nullable|string',
-            'patient_pname' => 'nullable|string',
-            'patient_fname' => 'nullable|string',
-            'patient_lname' => 'nullable|string',
+            'patient_pname' => 'required|string',
+            'patient_fname' => 'required|string',
+            'patient_lname' => 'required|string',
             'patient_birthdate' => 'nullable|date',
-            'patient_age' => 'nullable|integer|min:0|max:120',
-            'manual_pname' => 'required_if:patient_pname,null',
-            'manual_fname' => 'required_if:patient_fname,null',
-            'manual_lname' => 'required_if:patient_lname,null',
-            'manual_age' => 'required_if:patient_birthdate,null',
+            'patient_age' => 'required|integer|min:0|max:120',
             'patient_phone' => 'nullable|string|max:20',
         ], $messages);
 
-        // ส่วนที่เหลือของโค้ด store method ยังคงเดิม
+        // ดึงข้อมูล time slot ที่เลือก
         $timeSlot = TimeSlot::findOrFail($validated['time_slot_id']);
+
+        // ตรวจสอบว่าวันที่เลือกเป็นวันหยุดหรือไม่
+        $selectedDate = $timeSlot->date->format('Y-m-d');
+        $isHoliday = DB::connection('pgsql')
+            ->table('holiday')
+            ->where('holiday_date', $selectedDate)
+            ->exists();
+
+        if ($isHoliday) {
+            // ดึงข้อมูลวันหยุด
+            $holiday = DB::connection('pgsql')
+                ->table('holiday')
+                ->where('holiday_date', $selectedDate)
+                ->first();
+
+            $holidayName = $holiday ? $holiday->day_name : 'วันหยุด';
+
+            return back()->withErrors(['time_slot_id' => "ไม่สามารถนัดหมายในวันหยุด ({$holidayName}) กรุณาเลือกวันอื่น"])
+                ->withInput();
+        }
 
         // ตรวจสอบว่า time slot ยังว่างหรือไม่
         if (!$timeSlot->isAvailable()) {
@@ -529,6 +545,26 @@ class AppointmentController extends Controller
         if ($appointment->time_slot_id != $validated['time_slot_id']) {
             $oldTimeSlot = $appointment->timeSlot;
             $newTimeSlot = TimeSlot::findOrFail($validated['time_slot_id']);
+
+            // ตรวจสอบว่าวันที่ของช่วงเวลาใหม่เป็นวันหยุดหรือไม่
+            $selectedDate = $newTimeSlot->date->format('Y-m-d');
+            $isHoliday = DB::connection('pgsql')
+                ->table('holiday')
+                ->where('holiday_date', $selectedDate)
+                ->exists();
+
+            if ($isHoliday) {
+                // ดึงข้อมูลวันหยุด
+                $holiday = DB::connection('pgsql')
+                    ->table('holiday')
+                    ->where('holiday_date', $selectedDate)
+                    ->first();
+
+                $holidayName = $holiday ? $holiday->day_name : 'วันหยุด';
+
+                return back()->withErrors(['time_slot_id' => "ไม่สามารถนัดหมายในวันหยุด ({$holidayName}) กรุณาเลือกวันอื่น"])
+                    ->withInput();
+            }
 
             // ตรวจสอบว่าช่วงเวลาใหม่ยังว่างหรือไม่
             if (!$newTimeSlot->isAvailable()) {

@@ -30,9 +30,9 @@
 
     <!-- Icons -->
     <!-- The following icons can be replaced with your own, they are used by desktop and mobile browsers -->
-    <link rel="shortcut icon" href="{{ asset('media/favicons/favicon.png') }}">
-    <link rel="icon" sizes="192x192" type="image/png" href="{{ asset('media/favicons/favicon-192x192.png') }}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('media/favicons/apple-touch-icon-180x180.png') }}">
+    <link rel="shortcut icon" href="{{ asset('media/favicons/clock32.png') }}">
+    <link rel="icon" sizes="192x192" type="image/png" href="{{ asset('media/favicons/clock.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('media/favicons/clock.png') }}">
 
     <!-- Styles -->
     @vite(['resources/sass/main.scss', 'resources/js/codebase/app.js'])
@@ -61,15 +61,15 @@
                             <!-- Header -->
                             <div class="py-4 text-center">
                                 <a class="link-fx fw-bold" href="/">
-                                    <i class="fa fa-fire"></i>
+                                    <i class="fa fa-calendar-days"></i>
                                     <span class="fs-4 text-body-color">ระบบนัดออนไลน์-โรงพยาบาลหนองหาน</span>
                                 </a>
                                 <h1 class="h3 fw-bold mt-4 mb-1">
                                     ยินดีตอนรับ
                                 </h1>
-                                <h2 class="fs-5 lh-base fw-normal text-muted mb-0">
+{{--                                 <h2 class="fs-5 lh-base fw-normal text-muted mb-0">
                                     It's a great day today!
-                                </h2>
+                                </h2> --}}
                             </div>
                             <!-- END Header -->
 
@@ -88,7 +88,7 @@
                                                 class="form-control  @error('name') is-invalid  @enderror "
                                                 id="name" name="name" placeholder="Enter your name"
                                                 value="{{ old('name') }}">
-                                            <label class="form-label" for="name">Username</label>
+                                            <label class="form-label" for="name">ชื่อผู้ใช้</label>
                                             @error('name')
                                                 <span class="invalid-feedback" role="alert">
                                                     <strong>{{ $message }}</strong>
@@ -98,7 +98,7 @@
                                         <div class="form-floating mb-4">
                                             <input type="password" class="form-control @error('password') is-invalid  @enderror" id="password" name="password"
                                                 placeholder="Enter your password">
-                                            <label class="form-label" for="password">Password</label>
+                                            <label class="form-label" for="password">รหัสผ่าน</label>
                                             @error('password')
                                                 <span class="invalid-feedback" role="alert">
                                                     <strong>{{ $message }}</strong>
@@ -109,12 +109,12 @@
 
                                         <div class="row">
                                             <div class="col-sm-6 d-sm-flex align-items-center push">
-                                                <div class="form-check">
+                                                {{-- <div class="form-check">
                                                     <input class="form-check-input" type="checkbox" value="1"
                                                         id="login-remember-me" name="login-remember-me">
                                                     <label class="form-check-label"
                                                         for="login-remember-me">จดจำฉัน</label>
-                                                </div>
+                                                </div> --}}
                                             </div>
                                             <div class="col-sm-6 text-sm-end push">
                                                 <button type="submit" class="btn btn-lg btn-alt-primary fw-medium">
@@ -125,10 +125,10 @@
                                     </div>
                                     <div
                                         class="block-content block-content-full bg-body-light text-center d-flex justify-content-between">
-                                        <a class="fs-sm fw-medium link-fx text-muted me-2 mb-1 d-inline-block"
+                                        {{-- <a class="fs-sm fw-medium link-fx text-muted me-2 mb-1 d-inline-block"
                                             href="{{ route('register') }}">
                                             <i class="fa fa-plus opacity-50 me-1"></i> สมัครสมาชิก
-                                        </a>
+                                        </a> --}}
                                         {{-- @if (Route::has('password.request'))
                                         <a class="fs-sm fw-medium link-fx text-muted me-2 mb-1 d-inline-block"
                                             href="{{ route('password.request') }}">

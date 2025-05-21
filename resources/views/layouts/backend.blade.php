@@ -27,12 +27,12 @@
   <meta property="og:image" content="">
 
   <!-- Icons -->
-  <link rel="shortcut icon" href="{{ asset('media/favicons/favicon.png') }}">
-  <link rel="icon" sizes="192x192" type="image/png" href="{{ asset('media/favicons/favicon-192x192.png') }}">
-  <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('media/favicons/apple-touch-icon-180x180.png') }}">
+  <link rel="shortcut icon" href="{{ asset('media/favicons/clock32.png') }}">
+  <link rel="icon" sizes="192x192" type="image/png" href="{{ asset('media/favicons/clock.png') }}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('media/favicons/clock.png') }}">
 
   <!-- Modules -->
-  @yield('css')
+ 
   @vite(['resources/sass/main.scss', 'resources/sass/codebase/themes/elegance.scss', 'resources/js/codebase/app.js'])
 
   <!-- Alternatively, you can also include a specific color theme after the main stylesheet to alter the default color theme of the template -->
@@ -41,6 +41,7 @@
   <!-- Load and set dark mode preference (blocking script to prevent flashing) -->
   <script src="{{ asset('js/setTheme.js') }}"></script>
   <script src="{{ asset('js/lib/jquery.min.js') }}"></script>
+   @yield('css')
   @yield('js')
   <style>
     @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@100;200;300;400;500;600;700&display=swap');
@@ -158,7 +159,7 @@
             </span>
             <a class="link-fx fw-bold tracking-wide mx-auto" href="/">
               <span class="smini-hidden">
-                <i class="fa fa-fire text-primary"></i>
+                <i class="fa fa-calendar-days text-primary"></i>
                 <span class="fs-4 text-dual">ระบบนัดออนไลน์</span>
               </span>
             </a>

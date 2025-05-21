@@ -174,68 +174,77 @@
                           role="dialog" aria-labelledby="modal-status-{{ $appointment->id }}" aria-hidden="true">
                           <div class="modal-dialog" role="document">
                             <div class="modal-content">
-                              <div class="modal-header">
-                                <h5 class="modal-title">เปลี่ยนสถานะการนัดหมาย</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                  aria-label="Close"></button>
-                              </div>
-                              <form action="{{ route('appointments.updateStatus', $appointment) }}" method="POST">
-                                @csrf
-                                <div class="modal-body">
-                                  <p>
-                                    <strong>ผู้ป่วย:</strong> {{ $appointment->patient_pname }}
-                                    {{ $appointment->patient_fname }} {{ $appointment->patient_lname }}<br>
-                                    <strong>คลินิก:</strong> {{ $appointment->clinic->name }}<br>
-                                    <strong>แพทย์:</strong> {{ $appointment->doctor->name }}<br>
-                                    <strong>วันที่:</strong>
-                                    {{ \Carbon\Carbon::parse($appointment->timeSlot->date)->thaidate('D j M y') }}<br>
-                                    <strong>เวลา:</strong>
-                                    {{ \Carbon\Carbon::parse($appointment->timeSlot->start_time)->format('H:i') }} -
-                                    {{ \Carbon\Carbon::parse($appointment->timeSlot->end_time)->format('H:i') }}
-                                  </p>
+                              <div class="block block-rounded shadow-none mb-0">
+                                <form action="{{ route('appointments.updateStatus', $appointment) }}" method="POST">
+                                  @csrf
+                                  <div class="block-header block-header-default">
+                                    <h3 class="block-title">เปลี่ยนสถานะการนัดหมาย</h3>
+                                    <div class="block-options">
+                                      <button type="button" class="btn-block-option" data-bs-dismiss="modal"
+                                        aria-label="Close">
+                                        <i class="fa fa-times"></i>
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div class="block-content fs-sm">
 
-                                  <div class="mb-3">
-                                    <label for="status-{{ $appointment->id }}" class="form-label">สถานะใหม่</label>
-                                    <select class="form-select" id="status-{{ $appointment->id }}" name="status">
-                                      <option value="pending" {{ $appointment->status == 'pending' ? 'selected' : '' }}>
-                                        รอดำเนินการ
-                                      </option>
-                                      <option value="confirmed"
-                                        {{ $appointment->status == 'confirmed' ? 'selected' : '' }}>
-                                        ยืนยันแล้ว
-                                      </option>
-                                      <option value="completed"
-                                        {{ $appointment->status == 'completed' ? 'selected' : '' }}>
-                                        เสร็จสิ้น
-                                      </option>
-                                      <option value="cancelled"
-                                        {{ $appointment->status == 'cancelled' ? 'selected' : '' }}>
-                                        ยกเลิก
-                                      </option>
-                                    </select>
+                                    <p>
+                                      <strong>ผู้ป่วย:</strong> {{ $appointment->patient_pname }}
+                                      {{ $appointment->patient_fname }} {{ $appointment->patient_lname }}<br>
+                                      <strong>คลินิก:</strong> {{ $appointment->clinic->name }}<br>
+                                      <strong>แพทย์:</strong> {{ $appointment->doctor->name }}<br>
+                                      <strong>วันที่:</strong>
+                                      {{ \Carbon\Carbon::parse($appointment->timeSlot->date)->thaidate('D j M y') }}<br>
+                                      <strong>เวลา:</strong>
+                                      {{ \Carbon\Carbon::parse($appointment->timeSlot->start_time)->format('H:i') }} -
+                                      {{ \Carbon\Carbon::parse($appointment->timeSlot->end_time)->format('H:i') }}
+                                    </p>
 
-                                    <!-- ข้อความเตือนเกี่ยวกับการเปลี่ยนแปลงสถานะ -->
-                                    <div class="form-text mt-2">
-                                      <div class="alert alert-info p-2 mb-0">
-                                        <small>
-                                          <i class="fa fa-info-circle me-1"></i> หมายเหตุ:
-                                          <ul class="mb-0">
-                                            <li>การเปลี่ยนจาก "ยกเลิก" เป็น "รอดำเนินการ" ไม่สามารถทำได้</li>
-                                            <li>การเปลี่ยนจาก "เสร็จสิ้น" เป็น "รอดำเนินการ" ไม่สามารถทำได้</li>
-                                            <li>การเปลี่ยนเป็น "เสร็จสิ้น" ควรผ่านสถานะ "ยืนยันแล้ว" ก่อน</li>
-                                          </ul>
-                                        </small>
+                                    <div class="mb-3">
+                                      <label for="status-{{ $appointment->id }}" class="form-label">สถานะใหม่</label>
+                                      <select class="form-select" id="status-{{ $appointment->id }}" name="status">
+                                        <option value="pending"
+                                          {{ $appointment->status == 'pending' ? 'selected' : '' }}>
+                                          รอดำเนินการ
+                                        </option>
+                                        <option value="confirmed"
+                                          {{ $appointment->status == 'confirmed' ? 'selected' : '' }}>
+                                          ยืนยันแล้ว
+                                        </option>
+                                        <option value="completed"
+                                          {{ $appointment->status == 'completed' ? 'selected' : '' }}>
+                                          เสร็จสิ้น
+                                        </option>
+                                        <option value="cancelled"
+                                          {{ $appointment->status == 'cancelled' ? 'selected' : '' }}>
+                                          ยกเลิก
+                                        </option>
+                                      </select>
+
+                                      <!-- ข้อความเตือนเกี่ยวกับการเปลี่ยนแปลงสถานะ -->
+                                      <div class="form-text mt-2">
+                                        <div class="alert alert-info p-2 mb-0">
+                                          <small>
+                                            <i class="fa fa-info-circle me-1"></i> หมายเหตุ:
+                                            <ul class="mb-0">
+                                              <li>การเปลี่ยนจาก "ยกเลิก" เป็น "รอดำเนินการ" ไม่สามารถทำได้</li>
+                                              <li>การเปลี่ยนจาก "เสร็จสิ้น" เป็น "รอดำเนินการ" ไม่สามารถทำได้</li>
+                                              <li>การเปลี่ยนเป็น "เสร็จสิ้น" ควรผ่านสถานะ "ยืนยันแล้ว" ก่อน</li>
+                                            </ul>
+                                          </small>
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
-                                </div>
-                                <div class="modal-footer">
-                                  <button type="button" class="btn btn-alt-secondary"
-                                    data-bs-dismiss="modal">ปิด</button>
-                                  <button type="submit" class="btn btn-primary">บันทึก</button>
-                                </div>
-                              </form>
+                                  <div class="block-content block-content-full block-content-sm text-end border-top">
+                                    <button type="button" class="btn btn-alt-secondary"
+                                      data-bs-dismiss="modal">ปิด</button>
+                                    <button type="submit" class="btn btn-primary">บันทึก</button>
+                                  </div>
+                                </form>
+                              </div>
                             </div>
+
                           </div>
                         </div>
                       @endif

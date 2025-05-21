@@ -3,7 +3,7 @@
 @section('css')
   <link rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.47/css/bootstrap-datetimepicker.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
   <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
 @endsection
 
@@ -205,7 +205,7 @@
                         </a>
                         <a href="{{ route('timeslots.edit', $timeSlot) }}" class="btn btn-sm btn-alt-secondary"
                           data-toggle="tooltip" title="แก้ไข">
-                          <i class="fa fa-pencil-alt"></i>
+                           <i class="fa fa-pencil-alt"></i>
                         </a>
                         <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-toggle="modal"
                           data-bs-target="#modal-delete-{{ $timeSlot->id }}" data-toggle="tooltip" title="ลบ">

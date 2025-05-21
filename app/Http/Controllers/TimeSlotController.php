@@ -421,6 +421,7 @@ class TimeSlotController extends Controller
                     'maxAppointments' => $timeSlot->max_appointments,
                     'bookedAppointments' => $timeSlot->booked_appointments,
                     'isActive' => $timeSlot->is_active,
+                    'timeslot' => "$startTime - $endTime",
                 ]
             ];
         }
