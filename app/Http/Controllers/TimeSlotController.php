@@ -322,7 +322,7 @@ class TimeSlotController extends Controller
             $holidaysQuery = DB::connection('pgsql')
                 ->table('holiday')
                 ->whereRaw("EXTRACT(YEAR FROM holiday_date) = ?", [Carbon::today()->year])
-                ->select('holiday_date', 'day_name', 'day_status')
+                ->select('holiday_date', 'day_name')
                 ->get();
                 
             foreach ($holidaysQuery as $holiday) {
@@ -330,8 +330,8 @@ class TimeSlotController extends Controller
                 $holidays[] = [
                     'title' => $holiday->day_name,
                     'start' => $holidayDate,
-                    'display' => 'background',
-                    'backgroundColor' => '#ffcccc', // Light red background
+                    /* 'display' => 'background', */
+                    'backgroundColor' => '#ff3333', // Light red background
                     'classNames' => ['holiday-event'],
                     'allDay' => true
                 ];
@@ -341,7 +341,7 @@ class TimeSlotController extends Controller
             Log::error('Error getting holidays: ' . $e->getMessage());
             
             // Hardcoded holidays for Thailand 2025 (for demonstration)
-            $thaiHolidays = [
+           /*  $thaiHolidays = [
                 ['date' => '2025-01-01', 'name' => 'วันขึ้นปีใหม่'],
                 ['date' => '2025-02-10', 'name' => 'วันมาฆบูชา'],
                 ['date' => '2025-04-06', 'name' => 'วันจักรี'],
@@ -371,7 +371,7 @@ class TimeSlotController extends Controller
                     'classNames' => ['holiday-event'],
                     'allDay' => true
                 ];
-            }
+            } */
         }
         
         // Format events for the calendar
@@ -399,10 +399,13 @@ class TimeSlotController extends Controller
                 $color = '#6c757d'; // Bootstrap gray
                 $title .= ' [ปิดใช้งาน]';
             }
-            
+            if ($available == 0 && $timeSlot->is_active) {
+                $title .= ' [เต็ม]';
+            }
             // If fully booked, make the event more transparent
             $textColor = ($available == 0 && $timeSlot->is_active) ? '#333333' : '#FFFFFF';
             $backgroundColor = ($available == 0 && $timeSlot->is_active) ? $color . '80' : $color; // 80 = 50% opacity in hex
+            $color = ($available == 0 && $timeSlot->is_active) ? '#ff9999': $color; // 80 = 50% opacity in hex
             
             $events[] = [
                 'id' => $timeSlot->id,

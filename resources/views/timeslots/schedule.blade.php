@@ -59,7 +59,7 @@
     }
 
     .holiday-background {
-      background-color: #ffcccc !important;
+      
     }
 
     .holiday-dot {
@@ -162,6 +162,7 @@
         dayCellDidMount: function(info) {
           // Mark holiday cells with a special class
           const date = info.date.toISOString().split('T')[0];
+          
           const isHoliday = @json($events).some(event =>
             event.classNames &&
             event.classNames.includes('holiday-event') &&
@@ -292,11 +293,11 @@
               <span>ปิดใช้งาน (เฉพาะผู้ดูแลระบบ)</span>
             </div>
             <div class="status-indicator">
-              <span class="indicator-box" style="background-color: rgba(0, 123, 255, 0.5);"></span>
+              <span class="indicator-box" style="background-color: rgba(255, 153, 153);"></span>
               <span>เต็มแล้ว</span>
             </div>
             <div class="status-indicator">
-              <span class="indicator-box holiday-background"></span>
+              <span class="indicator-box" style="background-color: #dc3545"></span>
               <span>วันหยุด</span>
             </div>
           </div>
