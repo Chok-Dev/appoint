@@ -23,6 +23,7 @@ class Appointment extends Model
         'patient_lname',
         'patient_birthdate',
         'patient_age',
+        'patient_phone', // Add this new field
     ];
 
     public function user()

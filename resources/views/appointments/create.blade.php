@@ -32,6 +32,7 @@
           $('#manual_fname').val("{{ old('manual_fname') }}");
           $('#manual_lname').val("{{ old('manual_lname') }}");
           $('#manual_age').val("{{ old('manual_age') }}");
+          $('#manual_phone').val("{{ old('manual_phone') }}");
         @endif
       @endif
       // ซ่อนฟอร์มกรอกข้อมูลผู้ป่วยเมื่อโหลดหน้าครั้งแรก
@@ -89,29 +90,31 @@
                 }
 
                 html += `
-                            <h5>พบข้อมูลผู้ป่วย HN: ${patient.patient_hn || 'ไม่มีข้อมูล'}</h5>
-                            <p>
-                                ชื่อ-นามสกุล: ${patient.pname} ${patient.fname} ${patient.lname}<br>
-                                เลขบัตรประชาชน: ${patient.cid || 'ไม่มีข้อมูล'}<br>
-                                อายุ: ${age} ปี
-                            </p>
-                            <button type="button" class="btn btn-primary btn-sm select-patient" 
-                                data-cid="${patient.cid}"
-                                data-hn="${patient.patient_hn || ''}"
-                                data-pname="${patient.pname || ''}"
-                                data-fname="${patient.fname || ''}"
-                                data-lname="${patient.lname || ''}"
-                                data-birthdate="${patient.birthdate || ''}"
-                                data-age="${age !== 'ไม่มีข้อมูล' ? age : ''}">
-                                เลือกผู้ป่วยนี้
-                            </button>
-                        `;
+                <h5>พบข้อมูลผู้ป่วย HN: ${patient.patient_hn || 'ไม่มีข้อมูล'}</h5>
+                <p>
+                    ชื่อ-นามสกุล: ${patient.pname} ${patient.fname} ${patient.lname}<br>
+                    เลขบัตรประชาชน: ${patient.cid || 'ไม่มีข้อมูล'}<br>
+                    อายุ: ${age} ปี<br>
+                    เบอร์โทรศัพท์: ${patient.mobile_phone || 'ไม่มีข้อมูล'}
+                </p>
+                <button type="button" class="btn btn-primary btn-sm select-patient" 
+                    data-cid="${patient.cid}"
+                    data-hn="${patient.patient_hn || ''}"
+                    data-pname="${patient.pname || ''}"
+                    data-fname="${patient.fname || ''}"
+                    data-lname="${patient.lname || ''}"
+                    data-birthdate="${patient.birthdate || ''}"
+                    data-age="${age !== 'ไม่มีข้อมูล' ? age : ''}"
+                    data-phone="${patient.mobile_phone || ''}">
+                    เลือกผู้ป่วยนี้
+                </button>
+            `;
               } else {
                 // กรณีพบข้อมูลผู้ป่วยหลายคน
                 html += `<h5>พบข้อมูลผู้ป่วย ${patients.length} คน</h5>`;
                 html += '<div class="table-responsive"><table class="table table-sm table-bordered">';
                 html +=
-                  '<thead><tr><th>HN</th><th>เลขบัตรประชาชน</th><th>ชื่อ-นามสกุล</th><th>การจัดการ</th></tr></thead>';
+                  '<thead><tr><th>HN</th><th>เลขบัตรประชาชน</th><th>ชื่อ-นามสกุล</th><th>เบอร์โทรศัพท์</th><th>การจัดการ</th></tr></thead>';
                 html += '<tbody>';
 
                 patients.forEach(function(patient) {
@@ -124,22 +127,24 @@
                   }
 
                   html += `<tr>
-                                <td>${patient.patient_hn || 'ไม่มีข้อมูล'}</td>
-                                <td>${patient.cid || 'ไม่มีข้อมูล'}</td>
-                                <td>${patient.pname} ${patient.fname} ${patient.lname}</td>
-                                <td>
-                                    <button type="button" class="btn btn-primary btn-sm select-patient" 
-                                        data-cid="${patient.cid}"
-                                        data-hn="${patient.patient_hn || ''}"
-                                        data-pname="${patient.pname || ''}"
-                                        data-fname="${patient.fname || ''}"
-                                        data-lname="${patient.lname || ''}"
-                                        data-birthdate="${patient.birthdate || ''}"
-                                        data-age="${age !== 'ไม่มีข้อมูล' ? age : ''}">
-                                        เลือก
-                                    </button>
-                                </td>
-                            </tr>`;
+                    <td>${patient.patient_hn || 'ไม่มีข้อมูล'}</td>
+                    <td>${patient.cid || 'ไม่มีข้อมูล'}</td>
+                    <td>${patient.pname} ${patient.fname} ${patient.lname}</td>
+                    <td>${patient.mobile_phone || 'ไม่มีข้อมูล'}</td>
+                    <td>
+                        <button type="button" class="btn btn-primary btn-sm select-patient" 
+                            data-cid="${patient.cid}"
+                            data-hn="${patient.patient_hn || ''}"
+                            data-pname="${patient.pname || ''}"
+                            data-fname="${patient.fname || ''}"
+                            data-lname="${patient.lname || ''}"
+                            data-birthdate="${patient.birthdate || ''}"
+                            data-age="${age !== 'ไม่มีข้อมูล' ? age : ''}"
+                            data-phone="${patient.mobile_phone || ''}">
+                            เลือก
+                        </button>
+                    </td>
+                </tr>`;
                 });
 
                 html += '</tbody></table></div>';
@@ -160,22 +165,24 @@
                 $('#patient_lname').val(patientData.lname);
                 $('#patient_birthdate').val(patientData.birthdate);
                 $('#patient_age').val(patientData.age);
+                $('#patient_phone').val(patientData.phone);
 
                 // แสดงข้อมูลที่เลือก
                 $('#search-result').html(`
-                            <div class="alert alert-success">
-                                <h5>ข้อมูลผู้ป่วยที่เลือก</h5>
-                                <p>
-                                    ชื่อ-นามสกุล: ${patientData.pname} ${patientData.fname} ${patientData.lname}<br>
-                                    เลขบัตรประชาชน: ${patientData.cid}<br>
-                                    HN: ${patientData.hn || 'ไม่มีข้อมูล'}<br>
-                                    อายุ: ${patientData.age || 'ไม่มีข้อมูล'} ปี
-                                </p>
-                                <button type="button" class="btn btn-secondary btn-sm" id="clear-patient">
-                                    เปลี่ยนผู้ป่วย
-                                </button>
-                            </div>
-                        `);
+                <div class="alert alert-success">
+                    <h5>ข้อมูลผู้ป่วยที่เลือก</h5>
+                    <p>
+                        ชื่อ-นามสกุล: ${patientData.pname} ${patientData.fname} ${patientData.lname}<br>
+                        เลขบัตรประชาชน: ${patientData.cid}<br>
+                        HN: ${patientData.hn || 'ไม่มีข้อมูล'}<br>
+                        อายุ: ${patientData.age || 'ไม่มีข้อมูล'} ปี<br>
+                        เบอร์โทรศัพท์: ${patientData.phone || 'ไม่มีข้อมูล'}
+                    </p>
+                    <button type="button" class="btn btn-secondary btn-sm" id="clear-patient">
+                        เปลี่ยนผู้ป่วย
+                    </button>
+                </div>
+            `);
 
                 // ซ่อนฟอร์มกรอกข้อมูลผู้ป่วย
                 $('#patient-info-form').hide();
@@ -190,6 +197,7 @@
                   $('#patient_lname').val('');
                   $('#patient_birthdate').val('');
                   $('#patient_age').val('');
+                  $('#patient_phone').val('');
 
                   // ล้างผลการค้นหา
                   $('#search-result').html('');
@@ -199,11 +207,11 @@
             } else {
               // ไม่พบข้อมูลผู้ป่วย
               $('#search-result').html(`
-                        <div class="alert alert-warning">
-                            <h5>ไม่พบข้อมูลผู้ป่วย</h5>
-                            <p>กรุณากรอกข้อมูลผู้ป่วยด้านล่าง</p>
-                        </div>
-                    `);
+            <div class="alert alert-warning">
+                <h5>ไม่พบข้อมูลผู้ป่วย</h5>
+                <p>กรุณากรอกข้อมูลผู้ป่วยด้านล่าง</p>
+            </div>
+          `);
 
               // แสดงฟอร์มกรอกข้อมูลผู้ป่วย
               $('#patient-info-form').show();
@@ -219,16 +227,17 @@
               $('#manual_fname').val('');
               $('#manual_lname').val('');
               $('#manual_age').val('');
+              $('#manual_phone').val('');
             }
           },
           error: function(xhr, status, error) {
             console.error('AJAX error:', error, xhr);
             $('#search-result').html(`
-                    <div class="alert alert-danger">
-                        <h5>เกิดข้อผิดพลาดในการค้นหา</h5>
-                        <p>${error}</p>
-                    </div>
-                `);
+          <div class="alert alert-danger">
+              <h5>เกิดข้อผิดพลาดในการค้นหา</h5>
+              <p>${error}</p>
+          </div>
+        `);
 
             // แสดงฟอร์มกรอกข้อมูลผู้ป่วย
             $('#patient-info-form').show();
@@ -378,8 +387,8 @@
                                     if (holidays[currentDate]) {
                                       $('#date-holiday-warning').remove(); // ลบข้อความเดิมถ้ามี
                                       $(`<div id="date-holiday-warning" class="alert alert-warning mt-2">
-                                                                        <i class="fa fa-exclamation-triangle me-1"></i> วันที่คุณเลือกเป็นวันหยุด: ${holidays[currentDate].day_name}
-                                                                    </div>`).insertAfter('#date');
+                                                                    <i class="fa fa-exclamation-triangle me-1"></i> วันที่คุณเลือกเป็นวันหยุด: ${holidays[currentDate].day_name}
+                                                                </div>`).insertAfter('#date');
                                     }
 
                                     // โหลดช่วงเวลาสำหรับวันที่เดิม
@@ -454,8 +463,8 @@
                                     if (holidays[selectedDate]) {
                                       $('#date-holiday-warning').remove();
                                       $(`<div id="date-holiday-warning" class="alert alert-warning mt-2">
-                                                                        <i class="fa fa-exclamation-triangle me-1"></i> วันที่คุณเลือกเป็นวันหยุด: ${holidays[selectedDate].day_name}
-                                                                    </div>`).insertAfter('#date');
+                                                                    <i class="fa fa-exclamation-triangle me-1"></i> วันที่คุณเลือกเป็นวันหยุด: ${holidays[selectedDate].day_name}
+                                                                </div>`).insertAfter('#date');
                                     } else {
                                       $('#date-holiday-warning').remove();
                                     }
@@ -624,7 +633,6 @@
             success: function(response) {
               $('#date-loading').hide();
               console.log('Available dates response:', response);
-
               // แสดงข้อความแจ้งเตือนถ้ามี
               if (response.message && !response.success) {
                 $('#date-message').html(`<div class="alert alert-warning mt-2">${response.message}</div>`)
@@ -696,8 +704,8 @@
                   if (holidays[selectedDate]) {
                     $('#date-holiday-warning').remove(); // ลบข้อความเดิมถ้ามี
                     $(`<div id="date-holiday-warning" class="alert alert-warning mt-2">
-                    <i class="fa fa-exclamation-triangle me-1"></i> วันที่คุณเลือกเป็นวันหยุด: ${holidays[selectedDate].day_name}
-                  </div>`).insertAfter('#date');
+                <i class="fa fa-exclamation-triangle me-1"></i> วันที่คุณเลือกเป็นวันหยุด: ${holidays[selectedDate].day_name}
+              </div>`).insertAfter('#date');
                   } else {
                     $('#date-holiday-warning').remove();
                   }
@@ -911,6 +919,13 @@
                       max="120" value="{{ old('manual_age') }}">
                   </div>
                 </div>
+                <div class="col-md-6">
+                  <div class="mb-4">
+                    <label class="form-label fw-bold text-primary" for="manual_phone">เบอร์โทรศัพท์</label>
+                    <input type="text" class="form-control" id="manual_phone" name="manual_phone"
+                      value="{{ old('manual_phone') }}">
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -928,7 +943,7 @@
           <input type="hidden" id="patient_birthdate" name="patient_birthdate"
             value="{{ old('patient_birthdate') }}">
           <input type="hidden" id="patient_age" name="patient_age" value="{{ old('patient_age') }}">
-
+          <input type="hidden" id="patient_phone" name="patient_phone" value="{{ old('patient_phone') }}">
           <!-- ข้อมูลการนัดหมาย -->
           <div class="block block-rounded mb-4">
             <div class="block-header block-header-default bg-primary">

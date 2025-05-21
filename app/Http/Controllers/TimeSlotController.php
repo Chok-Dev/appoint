@@ -296,7 +296,7 @@ class TimeSlotController extends Controller
         
         // Define a set of colors for clinics
         $colors = [
-            '#3788d8', // Primary blue
+            '#FFB300', // Primary blue
             '#71BB4D', // Green
             '#F5A623', // Orange
             '#D84315', // Deep orange
@@ -307,7 +307,7 @@ class TimeSlotController extends Controller
             '#455A64', // Blue grey
             '#7986CB', // Indigo
             '#C0CA33', // Lime
-            '#FFB300', // Amber
+            '#3788d8', // Amber
         ];
         
         // Create color mapping for clinics

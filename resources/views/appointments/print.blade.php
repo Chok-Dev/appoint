@@ -154,6 +154,10 @@
         <div class="info-value">{{ $appointment->patient_cid }}</div>
       </div>
       <div class="info-row">
+        <div class="info-label">เบอร์โทรศัพท์:</div>
+        <div class="info-value">{{ $appointment->patient_phone ?: '-' }}</div>
+      </div>
+      <div class="info-row">
         <div class="info-label">HN รพ.หนองหาน:</div>
         <div class="info-value">{{ $appointment->patient_hn ?: '-' }}</div>
       </div>

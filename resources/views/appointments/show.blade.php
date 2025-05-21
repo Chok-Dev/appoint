@@ -57,6 +57,10 @@
                     @endif
                   </td>
                 </tr>
+                <tr>
+                  <th>เบอร์โทรศัพท์</th>
+                  <td>{{ $appointment->patient_phone ?? '-' }}</td>
+                </tr>
               </table>
             </div>
           </div>

@@ -1,4 +1,4 @@
-```php
+
 @extends('layouts.backend')
 
 @section('css')
@@ -33,9 +33,10 @@
           $('#manual_fname').val("{{ old('manual_fname') }}");
           $('#manual_lname').val("{{ old('manual_lname') }}");
           $('#manual_age').val("{{ old('manual_age') }}");
+          $('#manual_phone').val("{{ old('manual_phone') }}");
         @endif
       @endif
-      
+
       $('#search-form').html(`
         <div class="row mb-3">
             <div class="col-md-3">
@@ -70,7 +71,8 @@
                 ชื่อ-นามสกุล: {{ $appointment->patient_pname }} {{ $appointment->patient_fname }} {{ $appointment->patient_lname }}<br>
                 เลขบัตรประชาชน: {{ $appointment->patient_cid }}<br>
                 HN: {{ $appointment->patient_hn ?: 'ไม่มีข้อมูล' }}<br>
-                อายุ: {{ $appointment->patient_age ?: 'ไม่มีข้อมูล' }} ปี
+                อายุ: {{ $appointment->patient_age ?: 'ไม่มีข้อมูล' }} ปี<br>
+                เบอร์โทรศัพท์: {{ $appointment->patient_phone ?: 'ไม่มีข้อมูล' }}
             </p>
             <button type="button" class="btn btn-secondary btn-sm" id="change-patient">
                 เปลี่ยนผู้ป่วย
@@ -90,7 +92,7 @@
       });
 
       // เมื่อคลิกปุ่มค้นหา
-      $('#search-patient-btn').click(function() {
+      $(document).on('click', '#search-patient-btn', function() {
         const searchTerm = $('#search-term').val();
         const searchType = $('#search-type').val();
 
@@ -145,7 +147,8 @@
                             <p>
                                 ชื่อ-นามสกุล: ${patient.pname} ${patient.fname} ${patient.lname}<br>
                                 เลขบัตรประชาชน: ${patient.cid || 'ไม่มีข้อมูล'}<br>
-                                อายุ: ${age} ปี
+                                อายุ: ${age} ปี<br>
+                                เบอร์โทรศัพท์: ${patient.mobile_phone || 'ไม่มีข้อมูล'}
                             </p>
                             <button type="button" class="btn btn-primary btn-sm select-patient" 
                                 data-cid="${patient.cid}"
@@ -154,7 +157,8 @@
                                 data-fname="${patient.fname || ''}"
                                 data-lname="${patient.lname || ''}"
                                 data-birthdate="${patient.birthdate || ''}"
-                                data-age="${age !== 'ไม่มีข้อมูล' ? age : ''}">
+                                data-age="${age !== 'ไม่มีข้อมูล' ? age : ''}"
+                                data-phone="${patient.mobile_phone || ''}">
                                 เลือกผู้ป่วยนี้
                             </button>
                         `;
@@ -163,7 +167,7 @@
                 html += `<h5>พบข้อมูลผู้ป่วย ${patients.length} คน</h5>`;
                 html += '<div class="table-responsive"><table class="table table-sm table-bordered">';
                 html +=
-                  '<thead><tr><th>HN</th><th>เลขบัตรประชาชน</th><th>ชื่อ-นามสกุล</th><th>การจัดการ</th></tr></thead>';
+                  '<thead><tr><th>HN</th><th>เลขบัตรประชาชน</th><th>ชื่อ-นามสกุล</th><th>เบอร์โทรศัพท์</th><th>การจัดการ</th></tr></thead>';
                 html += '<tbody>';
 
                 patients.forEach(function(patient) {
@@ -179,6 +183,7 @@
                                 <td>${patient.patient_hn || 'ไม่มีข้อมูล'}</td>
                                 <td>${patient.cid || 'ไม่มีข้อมูล'}</td>
                                 <td>${patient.pname} ${patient.fname} ${patient.lname}</td>
+                                <td>${patient.mobile_phone || 'ไม่มีข้อมูล'}</td>
                                 <td>
                                     <button type="button" class="btn btn-primary btn-sm select-patient" 
                                         data-cid="${patient.cid}"
@@ -187,7 +192,8 @@
                                         data-fname="${patient.fname || ''}"
                                         data-lname="${patient.lname || ''}"
                                         data-birthdate="${patient.birthdate || ''}"
-                                        data-age="${age !== 'ไม่มีข้อมูล' ? age : ''}">
+                                        data-age="${age !== 'ไม่มีข้อมูล' ? age : ''}"
+                                        data-phone="${patient.mobile_phone || ''}">
                                         เลือก
                                     </button>
                                 </td>
@@ -212,6 +218,7 @@
                 $('#patient_lname').val(patientData.lname);
                 $('#patient_birthdate').val(patientData.birthdate);
                 $('#patient_age').val(patientData.age);
+                $('#patient_phone').val(patientData.phone);
 
                 // แสดงข้อมูลที่เลือก
                 $('#search-result').html(`
@@ -221,7 +228,8 @@
                                     ชื่อ-นามสกุล: ${patientData.pname} ${patientData.fname} ${patientData.lname}<br>
                                     เลขบัตรประชาชน: ${patientData.cid}<br>
                                     HN: ${patientData.hn || 'ไม่มีข้อมูล'}<br>
-                                    อายุ: ${patientData.age || 'ไม่มีข้อมูล'} ปี
+                                    อายุ: ${patientData.age || 'ไม่มีข้อมูล'} ปี<br>
+                                    เบอร์โทรศัพท์: ${patientData.phone || 'ไม่มีข้อมูล'}
                                 </p>
                                 <button type="button" class="btn btn-secondary btn-sm" id="clear-patient">
                                     เปลี่ยนผู้ป่วย
@@ -255,6 +263,7 @@
               $('#manual_fname').val('');
               $('#manual_lname').val('');
               $('#manual_age').val('');
+              $('#manual_phone').val('');
             }
           },
           error: function(xhr, status, error) {
@@ -282,6 +291,7 @@
         $('#patient_lname').val('');
         $('#patient_birthdate').val('');
         $('#patient_age').val('');
+        $('#patient_phone').val('');
 
         // ล้างผลการค้นหา
         $('#search-result').html('');
@@ -847,9 +857,6 @@
           $('#time-message').hide();
         }
       }
-
-      // แสดงข้อมูลผู้ป่วยเดิม
-
     });
   </script>
 @endsection
@@ -938,24 +945,15 @@
                       max="120" value="{{ old('manual_age') }}">
                   </div>
                 </div>
+                <div class="col-md-6">
+                  <div class="mb-4">
+                    <label class="form-label fw-bold text-primary" for="manual_phone">เบอร์โทรศัพท์</label>
+                    <input type="text" class="form-control" id="manual_phone" name="manual_phone"
+                      value="{{ old('manual_phone') }}">
+                  </div>
+                </div>
               </div>
             </div>
-
-            <!-- Hidden fields สำหรับเก็บข้อมูลผู้ป่วย -->
-            <input type="hidden" id="patient_cid" name="patient_cid"
-              value="{{ old('patient_cid', $appointment->patient_cid) }}">
-            <input type="hidden" id="patient_hn" name="patient_hn"
-              value="{{ old('patient_hn', $appointment->patient_hn) }}">
-            <input type="hidden" id="patient_pname" name="patient_pname"
-              value="{{ old('patient_pname', $appointment->patient_pname) }}">
-            <input type="hidden" id="patient_fname" name="patient_fname"
-              value="{{ old('patient_fname', $appointment->patient_fname) }}">
-            <input type="hidden" id="patient_lname" name="patient_lname"
-              value="{{ old('patient_lname', $appointment->patient_lname) }}">
-            <input type="hidden" id="patient_birthdate" name="patient_birthdate"
-              value="{{ old('patient_birthdate', $appointment->patient_birthdate) }}">
-            <input type="hidden" id="patient_age" name="patient_age"
-              value="{{ old('patient_age', $appointment->patient_age) }}">
           </div>
         </div>
 
@@ -964,16 +962,22 @@
           @method('PUT')
 
           <!-- Hidden fields สำหรับเก็บข้อมูลผู้ป่วย -->
-          <input type="hidden" id="patient_cid" name="patient_cid" value="{{ $appointment->patient_cid }}">
-          <input type="hidden" id="patient_hn" name="patient_hn" value="{{ $appointment->patient_hn }}">
-          <input type="hidden" id="patient_pname" name="patient_pname" value="{{ $appointment->patient_pname }}">
-          <input type="hidden" id="patient_fname" name="patient_fname" value="{{ $appointment->patient_fname }}">
-          <input type="hidden" id="patient_lname" name="patient_lname" value="{{ $appointment->patient_lname }}">
+          <input type="hidden" id="patient_cid" name="patient_cid"
+            value="{{ old('patient_cid', $appointment->patient_cid) }}">
+          <input type="hidden" id="patient_hn" name="patient_hn"
+            value="{{ old('patient_hn', $appointment->patient_hn) }}">
+          <input type="hidden" id="patient_pname" name="patient_pname"
+            value="{{ old('patient_pname', $appointment->patient_pname) }}">
+          <input type="hidden" id="patient_fname" name="patient_fname"
+            value="{{ old('patient_fname', $appointment->patient_fname) }}">
+          <input type="hidden" id="patient_lname" name="patient_lname"
+            value="{{ old('patient_lname', $appointment->patient_lname) }}">
           <input type="hidden" id="patient_birthdate" name="patient_birthdate"
-            value="{{ $appointment->patient_birthdate }}">
-          <input type="hidden" id="patient_age" name="patient_age" value="{{ $appointment->patient_age }}">
-
-          <!-- ข้อมูลการนัดหมาย -->
+            value="{{ old('patient_birthdate', $appointment->patient_birthdate) }}">
+          <input type="hidden" id="patient_age" name="patient_age"
+            value="{{ old('patient_age', $appointment->patient_age) }}">
+          <input type="hidden" id="patient_phone" name="patient_phone"
+            value="{{ old('patient_phone', $appointment->patient_phone) }}">
           <div class="block block-rounded mb-4">
             <div class="block-header block-header-default bg-primary">
               <h3 class="block-title text-white">ข้อมูลการนัดหมาย</h3>

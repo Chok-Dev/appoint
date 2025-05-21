@@ -22,7 +22,7 @@
 
     <!-- Open Graph Meta -->
     <meta property="og:title" content="ระบบนัดออนไลน์-โรงพยาบาลหนองหาน">
-    <meta property="og:site_name" content="Codebase">
+    <meta property="og:site_name" content="ระบบนัดออนไลน์">
     <meta property="og:description" content="ระบบนัดออนไลน์-โรงพยาบาลหนองหาน">
     <meta property="og:type" content="website">
     <meta property="og:url" content="">

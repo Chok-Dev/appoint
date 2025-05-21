@@ -57,7 +57,7 @@ class AppointmentController extends Controller
 
             // สร้าง query builder เริ่มต้น
             $query = DB::connection('pgsql')->table('person')
-                ->selectRaw('cid, pname, fname, lname, birthdate, patient_hn');
+                ->selectRaw('cid, pname, fname, lname, birthdate, patient_hn, mobile_phone');
 
             // ปรับ query ตามประเภทการค้นหา
             switch ($searchType) {
@@ -336,6 +336,8 @@ class AppointmentController extends Controller
             'manual_fname.required_if' => 'กรุณากรอกชื่อ',
             'manual_lname.required_if' => 'กรุณากรอกนามสกุล',
             'manual_age.required_if' => 'กรุณาระบุอายุ',
+            'patient_phone.string' => 'เบอร์โทรศัพท์ต้องเป็นข้อความ',
+            'patient_phone.max' => 'เบอร์โทรศัพท์ต้องไม่เกิน 20 ตัวอักษร',
         ];
 
         $validated = $request->validate([
@@ -352,6 +354,7 @@ class AppointmentController extends Controller
             'manual_fname' => 'required_if:patient_fname,null',
             'manual_lname' => 'required_if:patient_lname,null',
             'manual_age' => 'required_if:patient_birthdate,null',
+            'patient_phone' => 'nullable|string|max:20',
         ], $messages);
 
         // ส่วนที่เหลือของโค้ด store method ยังคงเดิม
@@ -398,6 +401,7 @@ class AppointmentController extends Controller
             'lname' => $validated['patient_lname'] ?? $validated['manual_lname'] ?? null,
             'birthdate' => $validated['patient_birthdate'] ?? null,
             'age' => $validated['patient_age'] ?? $validated['manual_age'] ?? null,
+            'phone' => $validated['patient_phone'] ?? null, // Add this line
         ];
 
         // เริ่ม transaction
@@ -419,8 +423,8 @@ class AppointmentController extends Controller
                 'patient_lname' => $patientData['lname'],
                 'patient_birthdate' => $patientData['birthdate'],
                 'patient_age' => $patientData['age'],
+                'patient_phone' => $patientData['phone'], // Add this line
             ]);
-
             // เพิ่มจำนวนการนัดหมายใน time slot
             $timeSlot->increment('booked_appointments');
             TelegramNotificationService::notifyAdminNewAppointment($appointment);
@@ -504,6 +508,8 @@ class AppointmentController extends Controller
             'patient_age.integer' => 'อายุต้องเป็นตัวเลข',
             'patient_age.min' => 'อายุต้องไม่น้อยกว่า 0 ปี',
             'patient_age.max' => 'อายุต้องไม่มากกว่า 120 ปี',
+            'patient_phone.string' => 'เบอร์โทรศัพท์ต้องเป็นข้อความ',
+            'patient_phone.max' => 'เบอร์โทรศัพท์ต้องไม่เกิน 20 ตัวอักษร',
         ];
 
         $validated = $request->validate([
@@ -516,6 +522,7 @@ class AppointmentController extends Controller
             'patient_lname' => 'required|string',
             'patient_birthdate' => 'nullable|date',
             'patient_age' => 'nullable|integer|min:0|max:120',
+            'patient_phone' => 'nullable|string|max:20',
         ], $messages);
 
         // ถ้ามีการเปลี่ยนช่วงเวลา
@@ -580,6 +587,7 @@ class AppointmentController extends Controller
                     'patient_lname' => $validated['patient_lname'],
                     'patient_birthdate' => $validated['patient_birthdate'],
                     'patient_age' => $validated['patient_age'],
+                    'patient_phone' => $validated['patient_phone'], // เพิ่มบรรทัดนี้
                 ]);
 
                 DB::commit();
@@ -603,6 +611,7 @@ class AppointmentController extends Controller
                 'patient_lname' => $validated['patient_lname'],
                 'patient_birthdate' => $validated['patient_birthdate'],
                 'patient_age' => $validated['patient_age'],
+                'patient_phone' => $validated['patient_phone'], // เพิ่มบรรทัดนี้
             ]);
 
             return redirect()->route('appointments.show', $appointment)
