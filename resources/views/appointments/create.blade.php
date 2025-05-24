@@ -72,7 +72,8 @@
           },
           success: function(response) {
             if (response.success && response.data.length > 0) {
-              // พบข้อมูลผู้ป่วย
+              // พบข้อมูลผู้ป่วย  
+              $('#patient-info-form').hide();
               const patients = response.data;
               let html = '<div class="alert alert-success">';
 
@@ -183,8 +184,10 @@
                 </div>
             `);
 
-                // ซ่อนฟอร์มกรอกข้อมูลผู้ป่วย
                 $('#patient-info-form').hide();
+
+                // ซ่อนฟอร์มค้นหาหลังจากเลือกผู้ป่วยแล้ว
+                $('#search-form').hide();
 
                 // เมื่อคลิกปุ่มเปลี่ยนผู้ป่วย
                 $('#clear-patient').click(function() {
@@ -199,6 +202,7 @@
                   $('#patient_phone').val('');
 
                   // ล้างผลการค้นหา
+                  $('#search-form').show();
                   $('#search-result').html('');
                   $('#search-term').val('');
                 });
@@ -392,7 +396,7 @@
                                       // ล้างและปิดใช้งานช่องเลือกเวลา
                                       $('#time_slot_id').empty().append(
                                         '<option value="">-- ไม่สามารถนัดหมายในวันหยุด --</option>'
-                                        );
+                                      );
                                       $('#time_slot_id').prop('disabled', true);
                                       $('#time-message').hide();
                                     } else {
@@ -477,7 +481,7 @@
                                       // ล้างและปิดใช้งานช่องเลือกเวลา
                                       $('#time_slot_id').empty().append(
                                         '<option value="">-- ไม่สามารถนัดหมายในวันหยุด --</option>'
-                                        );
+                                      );
                                       $('#time_slot_id').prop('disabled', true);
                                       $('#time-message').hide();
                                     } else {
@@ -824,7 +828,7 @@
                       $('#time_slot_id').prop('disabled', true);
                       $('#time-message').html(
                         `<div class="alert alert-warning mt-2">ไม่พบช่วงเวลาที่ว่างในวันที่ ${date}</div>`
-                        ).show();
+                      ).show();
                     }
                   },
                   error: function(xhr, status, error) {
@@ -835,7 +839,7 @@
                     $('#time_slot_id').prop('disabled', true);
                     $('#time-message').html(
                         `<div class="alert alert-danger mt-2">เกิดข้อผิดพลาดในการโหลดข้อมูลช่วงเวลา: ${error}</div>`
-                        )
+                      )
                       .show();
                   }
                 });
@@ -1018,29 +1022,31 @@
             <h3 class="block-title text-white">ข้อมูลผู้ป่วย</h3>
           </div>
           <div class="block-content">
-            <div class="row mb-3">
-              <div class="col-md-3">
-                <select class="form-select" id="search-type">
-                  <option value="cid">เลขบัตรประชาชน</option>
-                  <option value="hn">HN</option>
+            <div id="search-form">
+              <div class="row mb-3">
+                <div class="col-md-3">
+                  <select class="form-select" id="search-type">
+                    <option value="cid">เลขบัตรประชาชน</option>
+                    <option value="hn">HN</option>
 
-                </select>
-              </div>
-              <div class="col-md-9">
-                <div class="input-group">
-                  <input type="text" class="form-control" id="search-term" placeholder="ระบุคำค้นหา">
-                  <button type="button" class="btn btn-primary" id="search-patient-btn">
-                    <i class="fa fa-search me-1"></i> ค้นหา
-                  </button>
+                  </select>
+                </div>
+                <div class="col-md-9">
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="search-term" placeholder="ระบุคำค้นหา">
+                    <button type="button" class="btn btn-primary" id="search-patient-btn">
+                      <i class="fa fa-search me-1"></i> ค้นหา
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="form-text mb-3">
-              <ul class="mb-0">
-                <li>ค้นหาด้วยเลขบัตรประชาชน: กรอกเลข 13 หลัก หรือบางส่วนของเลขบัตร</li>
-                <li>ค้นหาด้วย HN: กรอกหมายเลข HN</li>
+              <div class="form-text mb-3">
+                <ul class="mb-0">
+                  <li>ค้นหาด้วยเลขบัตรประชาชน: กรอกเลข 13 หลัก หรือบางส่วนของเลขบัตร</li>
+                  <li>ค้นหาด้วย HN: กรอกหมายเลข HN</li>
 
-              </ul>
+                </ul>
+              </div>
             </div>
             <div id="patient-info-display" style="display: none;">
               <div class="alert alert-success">

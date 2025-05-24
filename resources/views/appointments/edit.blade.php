@@ -15,8 +15,10 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      // ซ่อนฟอร์มกรอกข้อมูลผู้ป่วยเมื่อโหลดหน้าครั้งแรก
       $('#patient-info-form').hide();
+
+      // เพิ่มบรรทัดนี้เพื่อซ่อนฟอร์มค้นหาเมื่อโหลดหน้าครั้งแรก
+      $('#search-form').hide();
 
       // แสดงข้อมูลผู้ป่วยปัจจุบันที่กำลังแก้ไข
       $('#search-result').html(`
@@ -67,6 +69,7 @@
 
         // ล้างผลการค้นหา
         $('#search-result').html('');
+        $('#search-form').show();
         $('#search-term').val('');
       });
 
@@ -228,6 +231,8 @@
 
                 // ซ่อนฟอร์มกรอกข้อมูลผู้ป่วย
                 $('#patient-info-form').hide();
+                // ซ่อนฟอร์มค้นหาหลังจากเลือกผู้ป่วยแล้ว
+                $('#search-form').hide();
               });
             } else {
               // ไม่พบข้อมูลผู้ป่วย
@@ -357,7 +362,8 @@
                         $('#date').daterangepicker({
                           "singleDatePicker": true,
                           opens: 'center',
-                          "minDate": moment().format('YYYY-MM-DD'), // ไม่ให้เลือกวันที่ผ่านมาแล้ว
+                          "minDate": moment().format(
+                            'YYYY-MM-DD'), // ไม่ให้เลือกวันที่ผ่านมาแล้ว
                           "locale": {
                             "format": "YYYY-MM-DD",
                             "separator": "-",
@@ -753,7 +759,8 @@
                   // ล้างและเพิ่มตัวเลือกเริ่มต้นในช่องเลือกช่วงเวลา
                   $('#time_slot_id').empty().append('<option value="">-- เลือกช่วงเวลา --</option>');
 
-                  let currentTimeSlotExists = false; // ตัวแปรเพื่อตรวจสอบว่าช่วงเวลาเดิมมีอยู่ในรายการที่ดึงมาหรือไม่
+                  let currentTimeSlotExists =
+                    false; // ตัวแปรเพื่อตรวจสอบว่าช่วงเวลาเดิมมีอยู่ในรายการที่ดึงมาหรือไม่
 
                   // เพิ่มช่วงเวลาที่ว่างทั้งหมดในรายการ
                   if (data && data.length > 0) {
@@ -1035,7 +1042,7 @@
             $('#patient_lname').val($('#manual_lname').val());
             $('#patient_age').val($('#manual_age').val());
             $('#patient_phone').val($('#manual_phone').val());
-            
+
             console.log('Manual data after transfer:', {
               cid: $('#patient_cid').val(),
               hn: $('#patient_hn').val(),
@@ -1099,7 +1106,8 @@
                 </div>
                 <div class="col-md-9">
                   <div class="input-group">
-                    <input type="text" class="form-control" id="search-term" placeholder="ระบุคำค้นหา" value="{{ $appointment->patient_cid }}">
+                    <input type="text" class="form-control" id="search-term" placeholder="ระบุคำค้นหา"
+                      value="{{ $appointment->patient_cid }}">
                     <button type="button" class="btn btn-primary" id="search-patient-btn">
                       <i class="fa fa-search me-1"></i> ค้นหา
                     </button>

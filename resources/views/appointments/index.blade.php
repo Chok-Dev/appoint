@@ -137,31 +137,37 @@
                         aria-labelledby="modal-cancel-{{ $appointment->id }}" aria-hidden="true">
                         <div class="modal-dialog" role="document">
                           <div class="modal-content">
-                            <div class="modal-header">
-                              <h5 class="modal-title">ยืนยันการยกเลิก</h5>
-                              <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                              <p>คุณต้องการยกเลิกการนัดหมายนี้ใช่หรือไม่?</p>
-                              <p>
-                                <strong>ผู้ป่วย:</strong> {{ $appointment->patient_pname }}
-                                {{ $appointment->patient_fname }} {{ $appointment->patient_lname }}<br>
-                                <strong>คลินิก:</strong> {{ $appointment->clinic->name }}<br>
-                                <strong>แพทย์:</strong> {{ $appointment->doctor->name }}<br>
-                                <strong>วันที่:</strong>
-                                {{ \Carbon\Carbon::parse($appointment->timeSlot->date)->thaidate('D j M y') }}<br>
-                                <strong>เวลา:</strong>
-                                {{ \Carbon\Carbon::parse($appointment->timeSlot->start_time)->format('H:i') }} -
-                                {{ \Carbon\Carbon::parse($appointment->timeSlot->end_time)->format('H:i') }}
-                              </p>
-                            </div>
-                            <div class="modal-footer">
-                              <button type="button" class="btn btn-alt-secondary" data-bs-dismiss="modal">ปิด</button>
-                              <form action="{{ route('appointments.cancel', $appointment) }}" method="POST">
-                                @csrf
-                                <button type="submit" class="btn btn-danger">ยกเลิกการนัดหมาย</button>
-                              </form>
+                            <div class="block block-rounded shadow-none mb-0">
+                              <div class="block-header block-header-default">
+                                <h5 class="modal-title">ยืนยันการยกเลิก</h5>
+                                <div class="block-options">
+                                  <button type="button" class="btn-block-option" data-bs-dismiss="modal"
+                                    aria-label="Close">
+                                    <i class="fa fa-times"></i>
+                                  </button>
+                                </div>
+                              </div>
+                              <div class="block-content fs-sm">
+                                <p>คุณต้องการยกเลิกการนัดหมายนี้ใช่หรือไม่?</p>
+                                <p>
+                                  <strong>ผู้ป่วย:</strong> {{ $appointment->patient_pname }}
+                                  {{ $appointment->patient_fname }} {{ $appointment->patient_lname }}<br>
+                                  <strong>คลินิก:</strong> {{ $appointment->clinic->name }}<br>
+                                  <strong>แพทย์:</strong> {{ $appointment->doctor->name }}<br>
+                                  <strong>วันที่:</strong>
+                                  {{ \Carbon\Carbon::parse($appointment->timeSlot->date)->thaidate('D j M y') }}<br>
+                                  <strong>เวลา:</strong>
+                                  {{ \Carbon\Carbon::parse($appointment->timeSlot->start_time)->format('H:i') }} -
+                                  {{ \Carbon\Carbon::parse($appointment->timeSlot->end_time)->format('H:i') }}
+                                </p>
+                              </div>
+                              <div class="modal-footer">
+                                <button type="button" class="btn btn-alt-secondary" data-bs-dismiss="modal">ปิด</button>
+                                <form action="{{ route('appointments.cancel', $appointment) }}" method="POST">
+                                  @csrf
+                                  <button type="submit" class="btn btn-danger">ยกเลิกการนัดหมาย</button>
+                                </form>
+                              </div>
                             </div>
                           </div>
                         </div>

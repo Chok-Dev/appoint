@@ -205,7 +205,7 @@
                         </a>
                         <a href="{{ route('timeslots.edit', $timeSlot) }}" class="btn btn-sm btn-alt-secondary"
                           data-toggle="tooltip" title="แก้ไข">
-                           <i class="fa fa-pencil-alt"></i>
+                          <i class="fa fa-pencil-alt"></i>
                         </a>
                         <button type="button" class="btn btn-sm btn-alt-secondary" data-bs-toggle="modal"
                           data-bs-target="#modal-delete-{{ $timeSlot->id }}" data-toggle="tooltip" title="ลบ">
@@ -218,39 +218,42 @@
                         aria-labelledby="modal-delete-{{ $timeSlot->id }}" aria-hidden="true">
                         <div class="modal-dialog" role="document">
                           <div class="modal-content">
-                            <div class="modal-header">
-                              <h5 class="modal-title">ยืนยันการลบ</h5>
-                              <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                              <p>คุณต้องการลบช่วงเวลานี้ใช่หรือไม่?</p>
-                              <p>
-                                <strong>คลินิก:</strong> {{ $timeSlot->clinic->name }}<br>
-                                <strong>แพทย์:</strong> {{ $timeSlot->doctor->name }}<br>
-                                <strong>วันที่:</strong>
-                                {{ \Carbon\Carbon::parse($timeSlot->date)->format('d/m/Y') }}<br>
-                                <strong>เวลา:</strong>
-                                {{ \Carbon\Carbon::parse($timeSlot->start_time)->format('H:i') }}
-                                -
-                                {{ \Carbon\Carbon::parse($timeSlot->end_time)->format('H:i') }}
-                              </p>
-                              @if ($timeSlot->booked_appointments > 0)
-                                <div class="alert alert-warning">
-                                  <i class="fa fa-exclamation-triangle me-1"></i>
-                                  ไม่สามารถลบช่วงเวลานี้ได้เนื่องจากมีการนัดหมายแล้ว
-                                </div>
-                              @endif
-                            </div>
-                            <div class="modal-footer">
-                              <button type="button" class="btn btn-alt-secondary" data-bs-dismiss="modal">ปิด</button>
-                              @if ($timeSlot->booked_appointments == 0)
-                                <form action="{{ route('timeslots.destroy', $timeSlot->id) }}" method="POST">
-                                  @csrf
-                                  @method('DELETE')
-                                  <button type="submit" class="btn btn-danger">ลบ</button>
-                                </form>
-                              @endif
+                            <div class="block block-rounded shadow-none mb-0">
+                              <div class="modal-header">
+                                <h5 class="modal-title">ยืนยันการลบ</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                  aria-label="Close"></button>
+                              </div>
+                              <div class="modal-body">
+                                <p>คุณต้องการลบช่วงเวลานี้ใช่หรือไม่?</p>
+                                <p>
+                                  <strong>คลินิก:</strong> {{ $timeSlot->clinic->name }}<br>
+                                  <strong>แพทย์:</strong> {{ $timeSlot->doctor->name }}<br>
+                                  <strong>วันที่:</strong>
+                                  {{ \Carbon\Carbon::parse($timeSlot->date)->format('d/m/Y') }}<br>
+                                  <strong>เวลา:</strong>
+                                  {{ \Carbon\Carbon::parse($timeSlot->start_time)->format('H:i') }}
+                                  -
+                                  {{ \Carbon\Carbon::parse($timeSlot->end_time)->format('H:i') }}
+                                </p>
+                                @if ($timeSlot->booked_appointments > 0)
+                                  <div class="alert alert-warning">
+                                    <i class="fa fa-exclamation-triangle me-1"></i>
+                                    ไม่สามารถลบช่วงเวลานี้ได้เนื่องจากมีการนัดหมายแล้ว
+                                  </div>
+                                @endif
+                              </div>
+                              <div class="modal-footer">
+                                <button type="button" class="btn btn-alt-secondary"
+                                  data-bs-dismiss="modal">ปิด</button>
+                                @if ($timeSlot->booked_appointments == 0)
+                                  <form action="{{ route('timeslots.destroy', $timeSlot->id) }}" method="POST">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-danger">ลบ</button>
+                                  </form>
+                                @endif
+                              </div>
                             </div>
                           </div>
                         </div>

@@ -49,32 +49,35 @@
                         aria-labelledby="modal-test-{{ $user->id }}" aria-hidden="true">
                         <div class="modal-dialog" role="document">
                           <div class="modal-content">
-                            <div class="modal-header">
-                              <h5 class="modal-title">ทดสอบการแจ้งเตือน</h5>
-                              <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                aria-label="Close"></button>
-                            </div>
-                            <form action="{{ route('telegram.test') }}" method="POST">
-                              @csrf
-                              <input type="hidden" name="user_id" value="{{ $user->id }}">
-                              <div class="modal-body">
-                                <p>คุณกำลังจะส่งข้อความทดสอบไปยัง:</p>
-                                <p>
-                                  <strong>ชื่อผู้ใช้:</strong> {{ $user->name }}<br>
-                                  <strong>อีเมล:</strong> {{ $user->email }}<br>
-                                  <strong>Telegram Chat ID:</strong> <code>{{ $user->telegram_chat_id }}</code>
-                                </p>
-                                <div class="mb-3">
-                                  <label class="form-label" for="message-{{ $user->id }}">ข้อความทดสอบ</label>
-                                  <textarea class="form-control" id="message-{{ $user->id }}" name="message" rows="3"
-                                    placeholder="พิมพ์ข้อความทดสอบที่นี่...">นี่คือข้อความทดสอบจากระบบนัดหมายโรงพยาบาลหนองหาน</textarea>
+                            <div class="block block-rounded shadow-none mb-0">
+                              <div class="modal-header">
+                                <h5 class="modal-title">ทดสอบการแจ้งเตือน</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                  aria-label="Close"></button>
+                              </div>
+                              <form action="{{ route('telegram.test') }}" method="POST">
+                                @csrf
+                                <input type="hidden" name="user_id" value="{{ $user->id }}">
+                                <div class="modal-body">
+                                  <p>คุณกำลังจะส่งข้อความทดสอบไปยัง:</p>
+                                  <p>
+                                    <strong>ชื่อผู้ใช้:</strong> {{ $user->name }}<br>
+                                    <strong>อีเมล:</strong> {{ $user->email }}<br>
+                                    <strong>Telegram Chat ID:</strong> <code>{{ $user->telegram_chat_id }}</code>
+                                  </p>
+                                  <div class="mb-3">
+                                    <label class="form-label" for="message-{{ $user->id }}">ข้อความทดสอบ</label>
+                                    <textarea class="form-control" id="message-{{ $user->id }}" name="message" rows="3"
+                                      placeholder="พิมพ์ข้อความทดสอบที่นี่...">นี่คือข้อความทดสอบจากระบบนัดหมายโรงพยาบาลหนองหาน</textarea>
+                                  </div>
                                 </div>
-                              </div>
-                              <div class="modal-footer">
-                                <button type="button" class="btn btn-alt-secondary" data-bs-dismiss="modal">ปิด</button>
-                                <button type="submit" class="btn btn-primary">ส่งข้อความทดสอบ</button>
-                              </div>
-                            </form>
+                                <div class="modal-footer">
+                                  <button type="button" class="btn btn-alt-secondary"
+                                    data-bs-dismiss="modal">ปิด</button>
+                                  <button type="submit" class="btn btn-primary">ส่งข้อความทดสอบ</button>
+                                </div>
+                              </form>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -85,28 +88,31 @@
                         aria-labelledby="modal-remove-{{ $user->id }}" aria-hidden="true">
                         <div class="modal-dialog" role="document">
                           <div class="modal-content">
-                            <div class="modal-header">
-                              <h5 class="modal-title">ยืนยันการยกเลิก</h5>
-                              <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                              <p>คุณต้องการยกเลิกการแจ้งเตือน Telegram ของผู้ใช้นี้หรือไม่?</p>
-                              <p>
-                                <strong>ชื่อผู้ใช้:</strong> {{ $user->name }}<br>
-                                <strong>อีเมล:</strong> {{ $user->email }}<br>
-                                <strong>Telegram Chat ID:</strong> <code>{{ $user->telegram_chat_id }}</code>
-                              </p>
-                              <p class="text-danger">หลังจากยกเลิกแล้ว ผู้ใช้จะไม่ได้รับการแจ้งเตือนผ่าน Telegram อีกต่อไป
-                              </p>
-                            </div>
-                            <div class="modal-footer">
-                              <button type="button" class="btn btn-alt-secondary" data-bs-dismiss="modal">ปิด</button>
-                              <form action="{{ route('telegram.remove-user') }}" method="POST">
-                                @csrf
-                                <input type="hidden" name="user_id" value="{{ $user->id }}">
-                                <button type="submit" class="btn btn-danger">ยืนยันการยกเลิก</button>
-                              </form>
+                            <div class="block block-rounded shadow-none mb-0">
+                              <div class="modal-header">
+                                <h5 class="modal-title">ยืนยันการยกเลิก</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                  aria-label="Close"></button>
+                              </div>
+                              <div class="modal-body">
+                                <p>คุณต้องการยกเลิกการแจ้งเตือน Telegram ของผู้ใช้นี้หรือไม่?</p>
+                                <p>
+                                  <strong>ชื่อผู้ใช้:</strong> {{ $user->name }}<br>
+                                  <strong>อีเมล:</strong> {{ $user->email }}<br>
+                                  <strong>Telegram Chat ID:</strong> <code>{{ $user->telegram_chat_id }}</code>
+                                </p>
+                                <p class="text-danger">หลังจากยกเลิกแล้ว ผู้ใช้จะไม่ได้รับการแจ้งเตือนผ่าน Telegram
+                                  อีกต่อไป
+                                </p>
+                              </div>
+                              <div class="modal-footer">
+                                <button type="button" class="btn btn-alt-secondary" data-bs-dismiss="modal">ปิด</button>
+                                <form action="{{ route('telegram.remove-user') }}" method="POST">
+                                  @csrf
+                                  <input type="hidden" name="user_id" value="{{ $user->id }}">
+                                  <button type="submit" class="btn btn-danger">ยืนยันการยกเลิก</button>
+                                </form>
+                              </div>
                             </div>
                           </div>
                         </div>

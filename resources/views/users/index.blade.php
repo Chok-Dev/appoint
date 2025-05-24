@@ -72,35 +72,37 @@
                         aria-labelledby="modal-delete-{{ $user->id }}" aria-hidden="true">
                         <div class="modal-dialog" role="document">
                           <div class="modal-content">
-                            <div class="modal-header">
-                              <h5 class="modal-title">ยืนยันการลบ</h5>
-                              <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                              <p>คุณต้องการลบผู้ใช้งาน "{{ $user->name }}" ใช่หรือไม่?</p>
-                              @if ($user->id === Auth::id())
-                                <div class="alert alert-warning">
-                                  <i class="fa fa-exclamation-triangle me-1"></i> ไม่สามารถลบบัญชีของตัวเองได้
-                                </div>
-                              @endif
+                            <div class="block block-rounded shadow-none mb-0">
+                              <div class="modal-header">
+                                <h5 class="modal-title">ยืนยันการลบ</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                  aria-label="Close"></button>
+                              </div>
+                              <div class="modal-body">
+                                <p>คุณต้องการลบผู้ใช้งาน "{{ $user->name }}" ใช่หรือไม่?</p>
+                                @if ($user->id === Auth::id())
+                                  <div class="alert alert-warning">
+                                    <i class="fa fa-exclamation-triangle me-1"></i> ไม่สามารถลบบัญชีของตัวเองได้
+                                  </div>
+                                @endif
 
-                              @if ($user->appointments()->exists())
-                                <div class="alert alert-warning">
-                                  <i class="fa fa-exclamation-triangle me-1"></i>
-                                  ไม่สามารถลบผู้ใช้งานนี้ได้เนื่องจากมีประวัติการนัดหมาย
-                                </div>
-                              @endif
-                            </div>
-                            <div class="modal-footer">
-                              <button type="button" class="btn btn-alt-secondary" data-bs-dismiss="modal">ปิด</button>
-                              @if ($user->id !== Auth::id() && !$user->appointments()->exists())
-                                <form action="{{ route('users.destroy', $user) }}" method="POST">
-                                  @csrf
-                                  @method('DELETE')
-                                  <button type="submit" class="btn btn-danger">ลบ</button>
-                                </form>
-                              @endif
+                                @if ($user->appointments()->exists())
+                                  <div class="alert alert-warning">
+                                    <i class="fa fa-exclamation-triangle me-1"></i>
+                                    ไม่สามารถลบผู้ใช้งานนี้ได้เนื่องจากมีประวัติการนัดหมาย
+                                  </div>
+                                @endif
+                              </div>
+                              <div class="modal-footer">
+                                <button type="button" class="btn btn-alt-secondary" data-bs-dismiss="modal">ปิด</button>
+                                @if ($user->id !== Auth::id() && !$user->appointments()->exists())
+                                  <form action="{{ route('users.destroy', $user) }}" method="POST">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-danger">ลบ</button>
+                                  </form>
+                                @endif
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -118,5 +120,5 @@
         @endif
       </div>
     </div>
-</div> 
+  </div>
 @endsection
