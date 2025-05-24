@@ -242,12 +242,12 @@ class AppointmentController extends Controller
             }
 
             // If no available dates, include next 7 days as a fallback
-            if (empty($formattedDates)) {
+            /* if (empty($formattedDates)) {
                 $startDate = now();
                 for ($i = 0; $i < 7; $i++) {
                     $formattedDates[] = $startDate->copy()->addDays($i)->format('Y-m-d');
                 }
-            }
+            } */
 
             // Get holidays from the HIS database
             $holidaysQuery = DB::connection('pgsql')
@@ -266,23 +266,16 @@ class AppointmentController extends Controller
                 'success' => true,
                 'dates' => $formattedDates,
                 'holidays' => $holidays,
-                'message' => empty($availableDates) ? 'ไม่พบวันที่ที่มีช่วงเวลาว่าง กำลังแสดง 7 วันข้างหน้าแทน' : 'พบวันที่ที่มีช่วงเวลาว่าง'
+                'message' => empty($availableDates) ? 'ไม่พบวันที่ที่มีช่วงเวลาว่าง' : 'พบวันที่ที่มีช่วงเวลาว่าง'
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting available dates: ' . $e->getMessage());
 
-            // Return next 7 days as a fallback
-            $fallbackDates = [];
-            $startDate = now();
-            for ($i = 0; $i < 7; $i++) {
-                $fallbackDates[] = $startDate->copy()->addDays($i)->format('Y-m-d');
-            }
-
             return response()->json([
                 'success' => false,
-                'dates' => $fallbackDates,
+                'dates' => [],
                 'holidays' => [],
-                'message' => 'เกิดข้อผิดพลาดในการดึงข้อมูลวันที่: ' . $e->getMessage() . ' กำลังแสดง 7 วันข้างหน้าแทน'
+                'message' => 'เกิดข้อผิดพลาดในการดึงข้อมูลวันที่: ' . $e->getMessage()
             ]);
         }
     }

@@ -252,7 +252,7 @@
                   <a class="nav-main-link{{ request()->is('timeslots') && !request()->is('timeslots/schedule') ? ' active' : '' }}"
                     href="{{ route('timeslots.index') }}">
                     <i class="nav-main-link-icon fa fa-clock"></i>
-                    <span class="nav-main-link-name">ช่วงเวลานัดหมาย</span>
+                    <span class="nav-main-link-name">จำกัดนัด</span>
                   </a>
                 </li>
                 <li class="nav-main-heading">จัดการระบบ</li>
