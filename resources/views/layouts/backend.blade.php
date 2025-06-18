@@ -100,7 +100,7 @@
   -->
   <div id="page-container" class="sidebar-o enable-page-overlay side-scroll page-header-modern main-content-narrow">
     <!-- Side Overlay-->
-    <aside id="side-overlay">
+    {{-- <aside id="side-overlay">
       <!-- Side Header -->
       <div class="content-header">
         <!-- User Avatar -->
@@ -132,7 +132,7 @@
         </p>
       </div>
       <!-- END Side Content -->
-    </aside>
+    </aside> --}}
     <!-- END Side Overlay -->
 
     <!-- Sidebar -->
@@ -404,7 +404,7 @@
           <!-- END User Dropdown -->
 
           <!-- Notifications -->
-          <div class="dropdown d-inline-block">
+          {{-- <div class="dropdown d-inline-block">
             <button type="button" class="btn btn-sm btn-alt-secondary" id="page-header-notifications"
               data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
               <i class="fa fa-flag"></i>
@@ -484,15 +484,15 @@
                 </a>
               </div>
             </div>
-          </div>
+          </div> --}}
           <!-- END Notifications -->
 
           <!-- Toggle Side Overlay -->
           <!-- Layout API, functionality initialized in Template._uiApiLayout() -->
-          <button type="button" class="btn btn-sm btn-alt-secondary" data-toggle="layout"
+          {{-- <button type="button" class="btn btn-sm btn-alt-secondary" data-toggle="layout"
             data-action="side_overlay_toggle">
             <i class="fa fa-fw fa-stream"></i>
-          </button>
+          </button> --}}
           <!-- END Toggle Side Overlay -->
         </div>
         <!-- END Right Section -->
