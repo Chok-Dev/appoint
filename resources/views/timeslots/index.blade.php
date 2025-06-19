@@ -106,6 +106,7 @@
         @endif
 
         <!-- Filter Form -->
+        <!-- Filter Form -->
         <div class="block block-rounded mb-4">
           <div class="block-content block-content-full">
             <form action="{{ route('timeslots.index') }}" method="GET" class="row">
@@ -149,14 +150,7 @@
         </div>
         <!-- END Filter Form -->
 
-        @php
-          // กรองเฉพาะ time slots ที่มีวันที่ตั้งแต่วันนี้เป็นต้นไป
-          $filteredTimeSlots = $timeSlots->filter(function ($timeSlot) {
-              return \Carbon\Carbon::parse($timeSlot->date)->startOfDay()->gte(\Carbon\Carbon::today());
-          });
-        @endphp
-
-        @if ($filteredTimeSlots->isEmpty())
+        @if ($timeSlots->isEmpty())
           <div class="alert alert-info">
             ไม่พบช่วงเวลาการนัดหมาย <a href="{{ route('timeslots.create') }}" class="alert-link">เพิ่มช่วงเวลาใหม่</a>
           </div>
@@ -180,7 +174,7 @@
                 </tr>
               </thead>
               <tbody>
-                @foreach ($filteredTimeSlots as $timeSlot)
+                @foreach ($timeSlots as $timeSlot)
                   <tr>
                     <td>{{ $timeSlot->clinic->name }}</td>
                     <td>{{ $timeSlot->doctor->name }}</td>

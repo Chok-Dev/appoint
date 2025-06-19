@@ -24,6 +24,9 @@ class TimeSlotController extends Controller
     {
         $query = TimeSlot::with(['doctor', 'clinic']);
 
+        // กรองเฉพาะวันที่ตั้งแต่วันนี้เป็นต้นไป (เพิ่มบรรทัดนี้)
+        $query->where('date', '>=', Carbon::today());
+
         // Filter by clinic if specified
         if ($request->has('clinic_id') && $request->clinic_id) {
             $query->where('clinic_id', $request->clinic_id);
@@ -287,13 +290,13 @@ class TimeSlotController extends Controller
         if ($request->has('clinic_id') && $request->clinic_id) {
             $query->where('clinic_id', $request->clinic_id);
         }
-            
+
         $timeSlots = $query->get();
-        
+
         // Generate color mapping for clinics
         $clinics = Clinic::all();
         $doctors = Doctor::all();
-        
+
         // Define a set of colors for clinics
         $colors = [
             '#FFB300', // Primary blue
@@ -309,13 +312,13 @@ class TimeSlotController extends Controller
             '#C0CA33', // Lime
             '#3788d8', // Amber
         ];
-        
+
         // Create color mapping for clinics
         $clinicColors = [];
         foreach ($clinics as $index => $clinic) {
             $clinicColors[$clinic->id] = $colors[$index % count($colors)];
         }
-        
+
         // Get holidays from PostgreSQL database
         try {
             $holidays = [];
@@ -324,7 +327,7 @@ class TimeSlotController extends Controller
                 ->whereRaw("EXTRACT(YEAR FROM holiday_date) = ?", [Carbon::today()->year])
                 ->select('holiday_date', 'day_name')
                 ->get();
-                
+
             foreach ($holidaysQuery as $holiday) {
                 $holidayDate = Carbon::parse($holiday->holiday_date)->format('Y-m-d');
                 $holidays[] = [
@@ -339,9 +342,9 @@ class TimeSlotController extends Controller
         } catch (\Exception $e) {
             // If cannot connect to PostgreSQL or table doesn't exist, use hardcoded holidays
             Log::error('Error getting holidays: ' . $e->getMessage());
-            
+
             // Hardcoded holidays for Thailand 2025 (for demonstration)
-           /*  $thaiHolidays = [
+            /*  $thaiHolidays = [
                 ['date' => '2025-01-01', 'name' => 'วันขึ้นปีใหม่'],
                 ['date' => '2025-02-10', 'name' => 'วันมาฆบูชา'],
                 ['date' => '2025-04-06', 'name' => 'วันจักรี'],
@@ -373,7 +376,7 @@ class TimeSlotController extends Controller
                 ];
             } */
         }
-        
+
         // Format events for the calendar
         $events = [];
         foreach ($timeSlots as $timeSlot) {
@@ -381,19 +384,19 @@ class TimeSlotController extends Controller
             if (!$timeSlot->is_active && !Auth::user()->isAdmin()) {
                 continue;
             }
-            
+
             // Format the start and end times properly
             $date = $timeSlot->date->format('Y-m-d');
             $startTime = $timeSlot->start_time->format('H:i:s');
             $endTime = $timeSlot->end_time->format('H:i:s');
-            
+
             // Format title - show how many slots available
             $available = $timeSlot->max_appointments - $timeSlot->booked_appointments;
             $title = $timeSlot->doctor->name . ' (' . $available . '/' . $timeSlot->max_appointments . ')';
-            
+
             // Determine color based on clinic and availability
             $color = $clinicColors[$timeSlot->clinic_id] ?? '#3788d8';
-            
+
             // For inactive slots, make them gray (admin only can see these)
             if (!$timeSlot->is_active) {
                 $color = '#6c757d'; // Bootstrap gray
@@ -405,8 +408,8 @@ class TimeSlotController extends Controller
             // If fully booked, make the event more transparent
             $textColor = ($available == 0 && $timeSlot->is_active) ? '#333333' : '#FFFFFF';
             $backgroundColor = ($available == 0 && $timeSlot->is_active) ? $color . '80' : $color; // 80 = 50% opacity in hex
-            $color = ($available == 0 && $timeSlot->is_active) ? '#ff9999': $color; // 80 = 50% opacity in hex
-            
+            $color = ($available == 0 && $timeSlot->is_active) ? '#ff9999' : $color; // 80 = 50% opacity in hex
+
             $events[] = [
                 'id' => $timeSlot->id,
                 'title' => $title,
@@ -425,13 +428,13 @@ class TimeSlotController extends Controller
                 ]
             ];
         }
-        
+
         // Combine timeslot events with holidays
         $events = array_merge($events, $holidays);
-        
+
         // Create a flag to check if holidays are shown
         $showHolidays = $request->has('show_holidays') ? (bool)$request->show_holidays : true;
-        
+
         return view('timeslots.schedule', compact('events', 'clinics', 'doctors', 'clinicColors', 'showHolidays'));
     }
 }
