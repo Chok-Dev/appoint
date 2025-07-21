@@ -279,7 +279,7 @@ class TimeSlotController extends Controller
     {
         $query = TimeSlot::with(['doctor', 'clinic'])
             ->where('date', '>=', Carbon::today()->subWeek())
-            ->where('date', '<=', Carbon::today()->addMonths(2));
+            ->where('date', '<=', Carbon::today()->addMonths(12));
 
         // Filter by doctor if specified
         if ($request->has('doctor_id') && $request->doctor_id) {

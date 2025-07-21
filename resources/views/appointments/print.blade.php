@@ -140,7 +140,7 @@
       </div>
       <!-- อื่นๆ เหมือนเดิม -->
     </div>
-    <div class="title">ใบนัดหมาย</div>
+    <div class="title">ใบนัดหมาย Refer ออนไลน์</div>
 
     <div class="patient-info">
       <div class="section-title">ข้อมูลผู้ป่วย</div>
@@ -215,12 +215,12 @@
       @endif
     </div>
 
-    <div class="qr-code">
+   {{--  <div class="qr-code">
       {!! QrCode::size(80)->generate(url('/appointments/' . $appointment->id)) !!}
       <div style="margin-top: 5px; font-size: 14px;">
         สแกนเพื่อดูรายละเอียดการนัดหมาย
       </div>
-    </div>
+    </div> --}}
 
     {{--  <div class="barcode">
       *A{{ str_pad($appointment->id, 8, '0', STR_PAD_LEFT) }}*
