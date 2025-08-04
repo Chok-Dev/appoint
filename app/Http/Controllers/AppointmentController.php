@@ -23,6 +23,59 @@ class AppointmentController extends Controller
     /**
      * Generate a printable version of the appointment.
      */
+    public function bulkUpdateOverdue()
+    {
+        // Check if the user is admin
+        if (!Auth::user()->isAdmin()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Find all appointments that are confirmed and past their appointment date
+            $overdueAppointments = Appointment::with(['timeSlot', 'user', 'clinic', 'doctor'])
+                ->whereIn('status', ['confirmed', 'pending'])
+                ->whereHas('timeSlot', function ($query) {
+                    $query->where('date', '<', now()->format('Y-m-d'));
+                })
+                ->get();
+
+            $updatedCount = 0;
+
+            foreach ($overdueAppointments as $appointment) {
+                $oldStatus = $appointment->status;
+                
+                // Update to completed
+                $appointment->update(['status' => 'completed']);
+                
+                // Send notification to user about status change
+                TelegramNotificationService::notifyUserStatusUpdate($appointment, $oldStatus, 'completed');
+                
+                $updatedCount++;
+            }
+
+            DB::commit();
+
+            if ($updatedCount > 0) {
+                return redirect()->route('appointments.index')
+                    ->with('success', "อัพเดทสถานะการนัดหมายที่เลยกำหนดแล้ว จำนวน {$updatedCount} รายการ เป็น 'เสร็จสิ้น' เรียบร้อยแล้ว");
+            } else {
+                return redirect()->route('appointments.index')
+                    ->with('info', 'ไม่พบการนัดหมายที่ต้องอัพเดทสถานะ');
+            }
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error bulk updating overdue appointments: ' . $e->getMessage());
+            return redirect()->route('appointments.index')
+                ->with('error', 'เกิดข้อผิดพลาดในการอัพเดทสถานะ: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Generate a printable version of the appointment.
+     */
     public function print(Appointment $appointment)
     {
         // Check if the user is admin or the appointment belongs to the user
@@ -179,7 +232,17 @@ class AppointmentController extends Controller
         // Paginate the results
         $appointments = $query->paginate($perPage);
 
-        return view('appointments.index', compact('appointments'));
+        // Count overdue appointments that need status update (for admin only)
+        $overdueCount = 0;
+        if (Auth::user()->isAdmin()) {
+            $overdueCount = Appointment::whereIn('status', ['confirmed', 'pending'])
+                ->whereHas('timeSlot', function ($query) {
+                    $query->where('date', '<', now()->format('Y-m-d'));
+                })
+                ->count();
+        }
+
+        return view('appointments.index', compact('appointments', 'overdueCount'));
     }
 
     public function create()

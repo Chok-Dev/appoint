@@ -96,6 +96,8 @@ Route::middleware(['auth'])->group(function () {
         // Admin-only route
         Route::middleware(['admin'])->group(function () {
             Route::post('/{appointment}/status', [AppointmentController::class, 'updateStatus'])->name('updateStatus');
+
+             Route::post('/appointments/bulk-update-overdue', [AppointmentController::class, 'bulkUpdateOverdue'])->name('bulkUpdateOverdue');
         });
     });
 

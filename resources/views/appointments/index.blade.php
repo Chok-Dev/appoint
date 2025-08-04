@@ -7,11 +7,18 @@
       <div class="block-header block-header-default">
         <h3 class="block-title">การนัดหมายทั้งหมด</h3>
         <div class="block-options">
+          @if (Auth::user()->isAdmin() && $overdueCount > 0)
+            <button type="button" class="btn btn-alt-warning me-2" data-bs-toggle="modal"
+              data-bs-target="#modal-bulk-update">
+              <i class="fa fa-clock"></i> อัพเดทที่เลยกำหนด ({{ $overdueCount }})
+            </button>
+          @endif
           <a href="{{ route('appointments.create') }}" class="btn btn-alt-primary">
             <i class="fa fa-plus"></i> นัดหมายใหม่
           </a>
         </div>
       </div>
+      
       @if (request('user_id'))
         @php
           $filterUser = App\Models\User::find(request('user_id'));
@@ -27,6 +34,22 @@
           </div>
         @endif
       @endif
+
+      <!-- Alert for overdue appointments (Admin only) -->
+      @if (Auth::user()->isAdmin() && $overdueCount > 0)
+        <div class="block-content pb-0">
+          <div class="alert alert-warning">
+            <i class="fa fa-exclamation-triangle me-1"></i> 
+            พบการนัดหมายที่เลยวันนัดแล้ว <strong>{{ $overdueCount }}</strong> รายการ 
+            ที่ยังไม่ได้อัพเดทสถานะ
+            <button type="button" class="btn btn-sm btn-warning ms-2" data-bs-toggle="modal"
+              data-bs-target="#modal-bulk-update">
+              <i class="fa fa-sync"></i> อัพเดทเป็น "เสร็จสิ้น"
+            </button>
+          </div>
+        </div>
+      @endif
+
       <div class="block-content">
         @if (session('success'))
           <div class="alert alert-success alert-dismissible" role="alert">
@@ -74,7 +97,11 @@
               </thead>
               <tbody>
                 @foreach ($appointments as $appointment)
-                  <tr>
+                  @php
+                    $isOverdue = \Carbon\Carbon::parse($appointment->timeSlot->date)->isPast() && 
+                                 in_array($appointment->status, ['confirmed', 'pending']);
+                  @endphp
+                  <tr class="{{ ($isOverdue && Auth::user()->isAdmin()) ? 'table-warning' : '' }}">
                     <td>{{ $loop->iteration }}</td>
                     <td>
                       {{ $appointment->patient_pname }} {{ $appointment->patient_fname }}
@@ -85,7 +112,12 @@
                     <td>{{ $appointment->patient_hn ?? '-' }}</td>
                     <td>{{ $appointment->clinic->name }}</td>
                     <td>{{ $appointment->doctor->name }}</td>
-                    <td>{{ \Carbon\Carbon::parse($appointment->timeSlot->date)->thaidate('D j M y') }}</td>
+                    <td>
+                      {{ \Carbon\Carbon::parse($appointment->timeSlot->date)->thaidate('D j M y') }}
+                      @if ($isOverdue && Auth::user()->isAdmin())
+                        <br><small class="text-warning"><i class="fa fa-clock"></i> เลยกำหนด</small>
+                      @endif
+                    </td>
                     <td>{{ \Carbon\Carbon::parse($appointment->timeSlot->start_time)->format('H:i') }} -
                       {{ \Carbon\Carbon::parse($appointment->timeSlot->end_time)->format('H:i') }}</td>
                     @if (Auth::user()->isAdmin())
@@ -99,7 +131,7 @@
                       @elseif($appointment->status == 'cancelled')
                         <span class="badge bg-danger">ยกเลิกแล้ว</span>
                       @elseif($appointment->status == 'completed')
-                        <span class="badge bg-info">เสร็จสิ้น</span>
+                        <span class="badge bg-success">เสร็จสิ้น</span>
                       @endif
 
                       <!-- เพิ่มปุ่มเปลี่ยนสถานะสำหรับผู้ดูแลระบบ -->
@@ -268,6 +300,63 @@
       </div>
     </div>
   </div>
+
+  <!-- Bulk Update Modal (Admin only) -->
+  @if (Auth::user()->isAdmin())
+    <div class="modal fade" id="modal-bulk-update" tabindex="-1" role="dialog" aria-labelledby="modal-bulk-update" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="block block-rounded shadow-none mb-0">
+            <div class="block-header block-header-default">
+              <h3 class="block-title">อัพเดทการนัดหมายที่เลยกำหนด</h3>
+              <div class="block-options">
+                <button type="button" class="btn-block-option" data-bs-dismiss="modal" aria-label="Close">
+                  <i class="fa fa-times"></i>
+                </button>
+              </div>
+            </div>
+            <div class="block-content fs-sm">
+              <div class="alert alert-warning">
+                <i class="fa fa-exclamation-triangle me-2"></i>
+                <strong>การดำเนินการนี้จะอัพเดทสถานะการนัดหมายทั้งหมดที่:</strong>
+                <ul class="mb-0 mt-2">
+                  <li>มีสถานะ "รอดำเนินการ" หรือ "ยืนยันแล้ว"</li>
+                  <li>วันนัดเลยวันปัจจุบันแล้ว</li>
+                </ul>
+              </div>
+              
+              @if ($overdueCount > 0)
+                <p class="mb-3">
+                  พบการนัดหมายที่ตรงตามเงื่อนไข <strong class="text-warning">{{ $overdueCount }}</strong> รายการ 
+                  ที่จะถูกอัพเดทสถานะเป็น <strong class="text-info">"เสร็จสิ้น"</strong>
+                </p>
+                
+                <div class="alert alert-info">
+                  <i class="fa fa-info-circle me-2"></i>
+                  <strong>หมายเหตุ:</strong> ผู้ใช้งานที่เกี่ยวข้องจะได้รับการแจ้งเตือนผ่าน Telegram เมื่อสถานะการนัดหมายถูกเปลี่ยนแปลง
+                </div>
+              @else
+                <p class="text-muted">ไม่พบการนัดหมายที่ต้องอัพเดทสถานะในขณะนี้</p>
+              @endif
+            </div>
+            <div class="block-content block-content-full block-content-sm text-end border-top">
+              <button type="button" class="btn btn-alt-secondary" data-bs-dismiss="modal">ปิด</button>
+              @if ($overdueCount > 0)
+                <form action="{{ route('appointments.bulkUpdateOverdue') }}" method="POST" class="d-inline">
+                  @csrf
+                  <button type="submit" class="btn btn-warning">
+                    <i class="fa fa-sync me-1"></i> อัพเดท {{ $overdueCount }} รายการ
+                  </button>
+                </form>
+              @endif
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  @endif
+  <!-- END Bulk Update Modal -->
+
   <!-- END Page Content -->
 @endsection
 
@@ -295,6 +384,15 @@
 
     .modal-body ul li {
       margin-bottom: 0.25rem;
+    }
+
+    /* Highlight overdue appointments */
+    .table-warning {
+      background-color: rgba(255, 193, 7, 0.1) !important;
+    }
+
+    .table-warning td {
+      border-color: rgba(255, 193, 7, 0.2) !important;
     }
   </style>
 @endsection
@@ -326,6 +424,16 @@
           }
         });
       @endforeach
+
+      // Confirmation for bulk update
+      $('form[action="{{ route('appointments.bulkUpdateOverdue') }}"]').on('submit', function(e) {
+        const confirmMessage = 'คุณต้องการอัพเดทสถานะการนัดหมายที่เลยกำหนดทั้งหมด {{ $overdueCount }} รายการ เป็น "เสร็จสิ้น" ใช่หรือไม่?\n\nการดำเนินการนี้ไม่สามารถยกเลิกได้';
+        
+        if (!confirm(confirmMessage)) {
+          e.preventDefault();
+          return false;
+        }
+      });
     });
   </script>
 @endsection
