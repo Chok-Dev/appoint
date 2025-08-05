@@ -246,6 +246,13 @@
                   <span class="nav-main-link-name">ตารางเวรแพทย์</span>
                 </a>
               </li>
+               <li class="nav-main-item{{ request()->is('icu*') ? ' open' : '' }}">
+                <a class="nav-main-link{{ request()->is('icu*') ? ' active' : '' }}"
+                  href="{{ route('icu.index') }}">
+                  <i class="nav-main-link-icon fa fa-bed"></i>
+                  <span class="nav-main-link-name">สถานะเตียง ICU</span>
+                </a>
+              </li>
               @if (Auth::user()->isAdmin())
                 <li
                   class="nav-main-item{{ request()->is('timeslots*') && !request()->is('timeslots/schedule') ? ' open' : '' }}">

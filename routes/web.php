@@ -10,6 +10,7 @@ use App\Http\Controllers\TimeSlotController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\TelegramAdminController;
 use App\Http\Controllers\TelegramWebhookController;
+use App\Http\Controllers\IcuBedController; // เพิ่มบรรทัดนี้
 
 /*
 |--------------------------------------------------------------------------
@@ -31,6 +32,12 @@ Route::get('/dashboard', function () {
 
 // Protected routes requiring authentication
 Route::middleware(['auth'])->group(function () {
+
+    // ICU Bed Status routes - เพิ่มส่วนนี้
+    Route::prefix('icu')->name('icu.')->group(function () {
+        Route::get('/', [IcuBedController::class, 'index'])->name('index');
+        Route::get('/api/status', [IcuBedController::class, 'apiStatus'])->name('api-status');
+    });
 
     // Group routes
     Route::prefix('groups')->name('groups.')->group(function () {
@@ -96,8 +103,7 @@ Route::middleware(['auth'])->group(function () {
         // Admin-only route
         Route::middleware(['admin'])->group(function () {
             Route::post('/{appointment}/status', [AppointmentController::class, 'updateStatus'])->name('updateStatus');
-
-             Route::post('/appointments/bulk-update-overdue', [AppointmentController::class, 'bulkUpdateOverdue'])->name('bulkUpdateOverdue');
+            Route::post('/bulk-update-overdue', [AppointmentController::class, 'bulkUpdateOverdue'])->name('bulkUpdateOverdue');
         });
     });
 
@@ -107,8 +113,6 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Profile routes
-    // Add these routes to your web.php file in the profile routes group
-
     Route::prefix('profile')->name('profile.')->group(function () {
         // Existing routes
         Route::get('/edit', [ProfileController::class, 'edit'])->name('edit');
@@ -124,6 +128,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/get-doctors', [AppointmentController::class, 'getDoctors'])->name('get.doctors');
     Route::get('/get-timeslots', [AppointmentController::class, 'getTimeSlots'])->name('get.timeslots');
 });
+
 Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle'])->name('telegram.webhook');
 
 // Admin-only Telegram Webhook management routes
