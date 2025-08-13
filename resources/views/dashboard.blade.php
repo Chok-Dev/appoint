@@ -62,15 +62,9 @@
                 <i class="fa fa-exclamation-triangle fa-2x opacity-25 text-danger"></i>
               </div>
               <div>
-                @php
-                  $overdueCount = \App\Models\Appointment::whereIn('status', ['confirmed', 'pending'])
-                      ->whereHas('timeSlot', function ($query) {
-                          $query->where('date', '<', now()->format('Y-m-d'));
-                      })
-                      ->count();
-                @endphp
-                <div class="fs-3 fw-semibold text-danger">{{ $overdueCount }}</div>
-                <div class="fs-sm fw-semibold text-uppercase text-muted">เลยกำหนด</div>
+               
+                <div class="fs-3 fw-semibold text-danger">{{ \App\Models\Appointment::where('status', 'cancelled')->count() }}</div>
+                <div class="fs-sm fw-semibold text-uppercase text-muted">ยกเลิก</div>
               </div>
             </div>
           </div>
@@ -167,27 +161,7 @@
     </div>
     <!-- END Overview -->
 
-    <!-- Alert สำหรับการนัดหมายที่เลยกำหนด (Admin เท่านั้น) -->
-    @if (Auth::user()->isAdmin() && $overdueCount > 0)
-      <div class="row">
-        <div class="col-12">
-          <div class="alert alert-warning d-flex align-items-center">
-            <div class="flex-shrink-0">
-              <i class="fa fa-exclamation-triangle fa-2x"></i>
-            </div>
-            <div class="flex-grow-1 ms-3">
-              <h4 class="alert-heading">พบการนัดหมายที่เลยกำหนด!</h4>
-              <p class="mb-0">
-                มีการนัดหมาย <strong>{{ $overdueCount }}</strong> รายการที่เลยวันนัดแล้ว แต่ยังไม่ได้อัพเดทสถานะ
-                <a href="{{ route('appointments.index') }}" class="alert-link ms-2">
-                  <i class="fa fa-arrow-right"></i> ไปจัดการ
-                </a>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    @endif
+    
 
     <!-- Recent Appointments -->
     <div class="block block-rounded">
