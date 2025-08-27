@@ -437,4 +437,126 @@ class TimeSlotController extends Controller
 
         return view('timeslots.schedule', compact('events', 'clinics', 'doctors', 'clinicColors', 'showHolidays'));
     }
+
+
+    public function bulkEdit(Request $request)
+    {
+        $query = TimeSlot::with(['doctor', 'clinic']);
+        
+        // กรองตามเงื่อนไขที่ส่งมา
+        if ($request->has('ids') && $request->ids) {
+            $ids = explode(',', $request->ids);
+            $query->whereIn('id', $ids);
+        } else {
+            // ถ้าไม่มี ids ให้แสดงตามฟิลเตอร์
+            $query->where('date', '>=', Carbon::today());
+            
+            if ($request->has('clinic_id') && $request->clinic_id) {
+                $query->where('clinic_id', $request->clinic_id);
+            }
+            
+            if ($request->has('doctor_id') && $request->doctor_id) {
+                $query->where('doctor_id', $request->doctor_id);
+            }
+            
+            if ($request->has('date_range') && $request->date_range) {
+                $dateRange = explode(' - ', $request->date_range);
+                if (count($dateRange) == 2) {
+                    try {
+                        $startDate = \Carbon\Carbon::createFromFormat('d/m/Y', trim($dateRange[0]))->startOfDay();
+                        $endDate = \Carbon\Carbon::createFromFormat('d/m/Y', trim($dateRange[1]))->endOfDay();
+                        $query->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
+                    } catch (\Exception $e) {
+                        Log::error('Error parsing date range: ' . $e->getMessage());
+                    }
+                }
+            }
+        }
+        
+        $timeSlots = $query->orderBy('date')->orderBy('start_time')->get();
+        $clinics = Clinic::all();
+        $doctors = Doctor::all();
+        
+        return view('timeslots.bulk-edit', compact('timeSlots', 'clinics', 'doctors'));
+    }
+    
+    public function bulkUpdate(Request $request)
+    {
+        $validated = $request->validate([
+            'timeslot_ids' => 'required|array',
+            'timeslot_ids.*' => 'exists:time_slots,id',
+            'bulk_action' => 'required|in:update_max_appointments,update_status,update_both',
+            'max_appointments' => 'nullable|integer|min:0',
+            'is_active' => 'nullable|boolean',
+            'respect_booked' => 'nullable|boolean', // เคารพจำนวนที่นัดไปแล้ว
+        ]);
+        
+        DB::beginTransaction();
+        
+        try {
+            $updatedCount = 0;
+            $skippedCount = 0;
+            $errors = [];
+            
+            foreach ($validated['timeslot_ids'] as $id) {
+                $timeSlot = TimeSlot::find($id);
+                
+                if (!$timeSlot) {
+                    $skippedCount++;
+                    continue;
+                }
+                
+                $updateData = [];
+                
+                // อัพเดทจำนวนสูงสุด
+                if ($validated['bulk_action'] === 'update_max_appointments' || $validated['bulk_action'] === 'update_both') {
+                    if (isset($validated['max_appointments'])) {
+                        $newMaxAppointments = $validated['max_appointments'];
+                        
+                        // ตรวจสอบว่าจำนวนใหม่ต้องไม่น้อยกว่าที่นัดไปแล้ว
+                        if ($validated['respect_booked'] && $newMaxAppointments < $timeSlot->booked_appointments) {
+                            $errors[] = "TimeSlot ID {$id}: จำนวนสูงสุดใหม่ ({$newMaxAppointments}) น้อยกว่าจำนวนที่นัดไปแล้ว ({$timeSlot->booked_appointments})";
+                            $skippedCount++;
+                            continue;
+                        }
+                        
+                        $updateData['max_appointments'] = $newMaxAppointments;
+                    }
+                }
+                
+                // อัพเดทสถานะ
+                if ($validated['bulk_action'] === 'update_status' || $validated['bulk_action'] === 'update_both') {
+                    if (isset($validated['is_active'])) {
+                        $updateData['is_active'] = $validated['is_active'];
+                    }
+                }
+                
+                if (!empty($updateData)) {
+                    $timeSlot->update($updateData);
+                    $updatedCount++;
+                }
+            }
+            
+            DB::commit();
+            
+            $message = "อัพเดทสำเร็จ {$updatedCount} รายการ";
+            if ($skippedCount > 0) {
+                $message .= ", ข้าม {$skippedCount} รายการ";
+            }
+            
+            if (!empty($errors)) {
+                return back()->with([
+                    'success' => $message,
+                    'warnings' => $errors
+                ]);
+            }
+            
+            return redirect()->route('timeslots.index')
+                ->with('success', $message);
+                
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'เกิดข้อผิดพลาด: ' . $e->getMessage()]);
+        }
+    }
 }
