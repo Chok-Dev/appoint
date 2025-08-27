@@ -249,7 +249,7 @@ class TimeSlotController extends Controller
         // อัพเดท TimeSlot
         $timeSlot->update($validated);
 
-        return redirect()->route('timeslots.show', $timeSlot)
+        return redirect()->route('timeslots.index', $timeSlot)
             ->with('success', 'อัพเดทช่วงเวลานัดหมายเรียบร้อยแล้ว');
     }
 

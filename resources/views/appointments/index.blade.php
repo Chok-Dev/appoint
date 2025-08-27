@@ -78,7 +78,7 @@
           </div>
         @else
           <div class="table-responsive">
-            <table class="table table-bordered table-striped table-vcenter">
+            <table class="table table-bordered table-striped table-vcenter table-hover">
               <thead>
                 <tr>
                   <th>ลำดับ</th>
@@ -135,12 +135,12 @@
                       @endif
 
                       <!-- เพิ่มปุ่มเปลี่ยนสถานะสำหรับผู้ดูแลระบบ -->
-                      @if (Auth::user()->isAdmin())
+                      {{-- @if (Auth::user()->isAdmin())
                         <button type="button" class="btn btn-sm btn-alt-secondary ms-1" data-bs-toggle="modal"
                           data-bs-target="#modal-status-{{ $appointment->id }}">
                           <i class="fa fa-edit fa-fw"></i>
                         </button>
-                      @endif
+                      @endif --}}
                     </td>
                     <td class="text-center">
                       <div class="btn-group">

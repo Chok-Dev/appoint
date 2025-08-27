@@ -91,11 +91,11 @@
                     @if ($appointment->status == 'pending')
                       <span class="badge bg-warning">รอดำเนินการ</span>
                     @elseif($appointment->status == 'confirmed')
-                      <span class="badge bg-success">ยืนยันแล้ว</span>
+                      <span class="badge bg-info">ยืนยันแล้ว</span>
                     @elseif($appointment->status == 'cancelled')
                       <span class="badge bg-danger">ยกเลิกแล้ว</span>
                     @elseif($appointment->status == 'completed')
-                      <span class="badge bg-info">เสร็จสิ้น</span>
+                      <span class="badge bg-success">เสร็จสิ้น</span>
                     @endif
                   </td>
                 </tr>
