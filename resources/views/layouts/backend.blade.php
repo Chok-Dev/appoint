@@ -231,6 +231,13 @@
                   <span class="nav-main-link-name">แดชบอร์ด</span>
                 </a>
               </li>
+              <li class="nav-main-item">
+                <a class="nav-main-link{{ request()->is('dashboard') ? ' active' : '' }}"
+                  href="https://www.notion.so/28ebe8db8426807fbbdfef098c78b7e8?source=copy_link">
+                  <i class="nav-main-link-icon fa fa-house-user"></i>
+                  <span class="nav-main-link-name">คู่มือการใช้งาน</span>
+                </a>
+              </li>
               <li class="nav-main-heading">ระบบนัดหมาย</li>
               <li class="nav-main-item{{ request()->is('appointments*') ? ' open' : '' }}">
                 <a class="nav-main-link{{ request()->is('appointments') ? ' active' : '' }}"

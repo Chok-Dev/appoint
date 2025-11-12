@@ -164,7 +164,7 @@
     
 
     <!-- Recent Appointments -->
-    <div class="block block-rounded">
+{{--     <div class="block block-rounded">
       <div class="block-header block-header-default">
         <h3 class="block-title">
           @if (Auth::user()->isAdmin())
@@ -287,7 +287,7 @@
           </div>
         @endif
       </div>
-    </div>
+    </div> --}}
     <!-- END Recent Appointments -->
 
     @if (Auth::user()->isAdmin())
@@ -302,8 +302,9 @@
             <div class="block-content">
               @php
                 $topUsers = \App\Models\User::withCount('appointments')
+                    ->where('role', 'user')
                     ->orderBy('appointments_count', 'desc')
-                    ->take(5)
+                    ->take(10)
                     ->get();
               @endphp
               
@@ -349,7 +350,7 @@
               @php
                 $topClinics = \App\Models\Clinic::withCount('appointments')
                     ->orderBy('appointments_count', 'desc')
-                    ->take(5)
+                    ->take(10)
                     ->get();
               @endphp
               
