@@ -66,15 +66,15 @@
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">วันที่นัดหมาย</label>
-                            <div class="input-daterange input-group" data-date-format="mm/dd/yyyy" data-week-start="1"
-                                data-autoclose="true" data-today-highlight="true">
-                                <input type="date" class="form-control" id="start_date" name="start_date"
-                                    placeholder="จาก" value="{{ request('start_date') }}">
-                                <span class="input-group-text fw-semibold">
-                                    <i class="fa fa-fw fa-arrow-right"></i>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fa fa-calendar"></i>
                                 </span>
-                                <input type="date" class="form-control" id="end_date" name="end_date" placeholder="ถึง"
-                                    value="{{ request('end_date') }}">
+                                <input type="text" class="form-control" id="date_range" name="date_range"
+                                    placeholder="เลือกช่วงวันที่..." autocomplete="off">
+                                <input type="hidden" id="start_date" name="start_date"
+                                    value="{{ request('start_date') }}">
+                                <input type="hidden" id="end_date" name="end_date" value="{{ request('end_date') }}">
                             </div>
                         </div>
                     </div>
@@ -176,7 +176,7 @@
                                             in_array($appointment->status, ['confirmed', 'pending']);
                                     @endphp
                                     <tr class="{{ $isOverdue && Auth::user()->isAdmin() ? 'table-warning' : '' }}">
-                                        <td>{{ $loop->iteration }}</td>
+                                        <td>{{ $appointments->firstItem() + $loop->index }}</td>
                                         <td>
                                             {{ $appointment->patient_pname }} {{ $appointment->patient_fname }}
                                             {{ $appointment->patient_lname }}
