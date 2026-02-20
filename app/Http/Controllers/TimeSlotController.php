@@ -87,7 +87,21 @@ class TimeSlotController extends Controller
         return view('timeslots.create', compact('clinics', 'doctors'));
     }
 
-    public function store(Request $request)
+    // แก้ไข method เดิมเป็น storeOrUpdate ใน TimeSlotController
+
+    public function storeOrUpdate(Request $request)
+    {
+        // ตรวจสอบว่ากดปุ่มไหน
+        $action = $request->input('action', 'create'); // default เป็น create
+
+        if ($action === 'update') {
+            return $this->updateExisting($request);
+        } else {
+            return $this->store($request);
+        }
+    }
+
+    public function updateExisting(Request $request)
     {
         $validated = $request->validate([
             'doctor_id' => 'required|exists:doctors,id',
@@ -100,7 +114,7 @@ class TimeSlotController extends Controller
             'is_active' => 'nullable',
         ]);
 
-        // แยกค่าวันเริ่มต้นและวันสิ้นสุดจาก daterange (รูปแบบ: "YYYY/MM/DD-YYYY/MM/DD")
+        // แยกค่าวันเริ่มต้นและวันสิ้นสุดจาก daterange
         $dateRange = explode('-', $validated['daterange']);
         $startDate = Carbon::createFromFormat('Y/m/d', trim($dateRange[0]));
         $endDate = Carbon::createFromFormat('Y/m/d', trim($dateRange[1]));
@@ -114,59 +128,177 @@ class TimeSlotController extends Controller
                 ->withInput();
         }
 
-        // เริ่ม transaction เพื่อสร้างหลาย timeslots
         DB::beginTransaction();
 
         try {
-            // สร้าง Carbon instance สำหรับแต่ละวันในช่วงวันที่เลือก
+            $currentDate = $startDate->copy();
+            $updatedCount = 0;
+            $notFoundCount = 0;
+
+            while ($currentDate->lte($endDate)) {
+                $dayOfWeek = $currentDate->dayOfWeek;
+                $shouldProcess = false;
+
+                // ตรวจสอบตัวเลือกวัน
+                switch ($validated['daycheck']) {
+                    case 'd1':
+                        $shouldProcess = true;
+                        break;
+                    case 'd2':
+                        $shouldProcess = !in_array($dayOfWeek, [0, 5, 6]);
+                        break;
+                    case 'd3':
+                        $shouldProcess = ($dayOfWeek == 5);
+                        break;
+                    case 'd4':
+                        $shouldProcess = !in_array($dayOfWeek, [0, 6]);
+                        break;
+                    case 'd5':
+                        $shouldProcess = ($dayOfWeek == 1);
+                        break;
+                    case 'd6':
+                        $shouldProcess = !in_array($dayOfWeek, [0, 1, 6]);
+                        break;
+                    case 'd7':
+                        $shouldProcess = ($dayOfWeek == 2);
+                        break;
+                    case 'd8':
+                        $shouldProcess = ($dayOfWeek == 3);
+                        break;
+                    case 'd9':
+                        $shouldProcess = ($dayOfWeek == 4);
+                        break;
+                    case 'd10':
+                        $shouldProcess = ($dayOfWeek == 6);
+                        break;
+                    case 'd11':
+                        $shouldProcess = ($dayOfWeek == 0);
+                        break;
+                }
+
+                if ($shouldProcess) {
+                    // หาข้อมูลที่ตรงกันทุกเงื่อนไข (วันที่ + ช่วงเวลา)
+                    $existingTimeSlot = TimeSlot::where('date', $currentDate->format('Y-m-d'))
+                        ->where('doctor_id', $validated['doctor_id'])
+                        ->where('clinic_id', $validated['clinic_id'])
+                        ->where('start_time', $validated['start_time'])
+                        ->where('end_time', $validated['end_time'])
+                        ->first();
+
+                    if ($existingTimeSlot) {
+                        // พบข้อมูล -> อัพเดท
+                        $existingTimeSlot->update([
+                            'max_appointments' => $validated['max_appointments'],
+                            'is_active' => isset($validated['is_active']) ? true : false,
+                        ]);
+                        $updatedCount++;
+                    } else {
+                        // ไม่พบข้อมูล -> ข้าม (ไม่สร้างใหม่)
+                        $notFoundCount++;
+                    }
+                }
+
+                $currentDate->addDay();
+            }
+
+            DB::commit();
+
+            if ($updatedCount > 0) {
+                $message = "อัพเดทสำเร็จ {$updatedCount} รายการ";
+                if ($notFoundCount > 0) {
+                    $message .= " (ไม่พบข้อมูลเดิม {$notFoundCount} รายการ)";
+                }
+                return redirect()->route('timeslots.index')
+                    ->with('success', $message);
+            } else {
+                return back()->withErrors(['daterange' => "ไม่พบข้อมูลที่ตรงกันในช่วงวันที่ที่เลือก ({$notFoundCount} รายการไม่พบ)"])
+                    ->withInput();
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'เกิดข้อผิดพลาด: ' . $e->getMessage()])
+                ->withInput();
+        }
+    }
+
+    // แก้ไข method store เดิมให้สร้างเฉพาะข้อมูลใหม่
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'doctor_id' => 'required|exists:doctors,id',
+            'clinic_id' => 'required|exists:clinics,id',
+            'daterange' => 'required|string',
+            'daycheck' => 'required|string',
+            'start_time' => 'required',
+            'end_time' => 'required|after:start_time',
+            'max_appointments' => 'required|integer|min:1',
+            'is_active' => 'nullable',
+        ]);
+
+        // แยกค่าวันเริ่มต้นและวันสิ้นสุดจาก daterange
+        $dateRange = explode('-', $validated['daterange']);
+        $startDate = Carbon::createFromFormat('Y/m/d', trim($dateRange[0]));
+        $endDate = Carbon::createFromFormat('Y/m/d', trim($dateRange[1]));
+
+        // ตรวจสอบว่าหมอเชื่อมโยงกับคลินิกหรือไม่
+        $doctor = Doctor::findOrFail($validated['doctor_id']);
+        $clinic = Clinic::findOrFail($validated['clinic_id']);
+
+        if (!$doctor->clinics->contains($clinic->id)) {
+            return back()->withErrors(['doctor_id' => 'แพทย์ท่านนี้ไม่ได้สังกัดคลินิกที่เลือก'])
+                ->withInput();
+        }
+
+        DB::beginTransaction();
+
+        try {
             $currentDate = $startDate->copy();
             $createdCount = 0;
+            $skippedCount = 0;
 
-            // วนลูปสร้าง timeslots สำหรับทุกวันในช่วงที่เลือก
             while ($currentDate->lte($endDate)) {
-                $dayOfWeek = $currentDate->dayOfWeek; // 0 = วันอาทิตย์, 6 = วันเสาร์
-
+                $dayOfWeek = $currentDate->dayOfWeek;
                 $createTimeSlot = false;
 
                 // ตรวจสอบตัวเลือกวัน
                 switch ($validated['daycheck']) {
-                    case 'd1': // เอาทุกวันที่เลือก
+                    case 'd1':
                         $createTimeSlot = true;
                         break;
-                    case 'd2': // ไม่เอาวันศุกร์,เสาร์,อาทิตย์
+                    case 'd2':
                         $createTimeSlot = !in_array($dayOfWeek, [0, 5, 6]);
                         break;
-                    case 'd3': // เอาเฉพาะวันศุกร์
+                    case 'd3':
                         $createTimeSlot = ($dayOfWeek == 5);
                         break;
-                    case 'd4': // ไม่เอาวันเสาร์,อาทิตย์
+                    case 'd4':
                         $createTimeSlot = !in_array($dayOfWeek, [0, 6]);
                         break;
-                    case 'd5': // เอาเฉพาะวันจันทร์
+                    case 'd5':
                         $createTimeSlot = ($dayOfWeek == 1);
                         break;
-                    case 'd6': // ไม่เอาวันเสาร์,อาทิตย์,จันทร์
+                    case 'd6':
                         $createTimeSlot = !in_array($dayOfWeek, [0, 1, 6]);
                         break;
-                    case 'd7': // เอาเฉพาะวันอังคาร
+                    case 'd7':
                         $createTimeSlot = ($dayOfWeek == 2);
                         break;
-                    case 'd8': // เอาเฉพาะวันพุธ
+                    case 'd8':
                         $createTimeSlot = ($dayOfWeek == 3);
                         break;
-                    case 'd9': // เอาเฉพาะวันพฤหัสบดี
+                    case 'd9':
                         $createTimeSlot = ($dayOfWeek == 4);
                         break;
-                    case 'd10': // เอาเฉพาะวันเสาร์
+                    case 'd10':
                         $createTimeSlot = ($dayOfWeek == 6);
                         break;
-                    case 'd11': // เอาเฉพาะวันอาทิตย์
+                    case 'd11':
                         $createTimeSlot = ($dayOfWeek == 0);
                         break;
                 }
 
                 if ($createTimeSlot) {
-                    // ตรวจสอบว่ามี TimeSlot ในวันและเวลาเดียวกันหรือไม่
+                    // ตรวจสอบว่ามี TimeSlot ที่ซ้ำกันหรือไม่
                     $existingTimeSlot = TimeSlot::where('date', $currentDate->format('Y-m-d'))
                         ->where('doctor_id', $validated['doctor_id'])
                         ->where('clinic_id', $validated['clinic_id'])
@@ -175,6 +307,7 @@ class TimeSlotController extends Controller
                         ->first();
 
                     if (!$existingTimeSlot) {
+                        // ไม่มีข้อมูลซ้ำ -> สร้างใหม่
                         TimeSlot::create([
                             'doctor_id' => $validated['doctor_id'],
                             'clinic_id' => $validated['clinic_id'],
@@ -185,8 +318,10 @@ class TimeSlotController extends Controller
                             'booked_appointments' => 0,
                             'is_active' => isset($validated['is_active']) ? true : false,
                         ]);
-
                         $createdCount++;
+                    } else {
+                        // มีข้อมูลซ้ำแล้ว -> ข้าม
+                        $skippedCount++;
                     }
                 }
 
@@ -196,10 +331,18 @@ class TimeSlotController extends Controller
             DB::commit();
 
             if ($createdCount > 0) {
+                $message = "สร้างช่วงเวลานัดหมายสำเร็จจำนวน {$createdCount} รายการ";
+                if ($skippedCount > 0) {
+                    $message .= " (ข้ามข้อมูลซ้ำ {$skippedCount} รายการ)";
+                }
                 return redirect()->route('timeslots.index')
-                    ->with('success', "สร้างช่วงเวลานัดหมายสำเร็จจำนวน {$createdCount} รายการ");
+                    ->with('success', $message);
             } else {
-                return back()->withErrors(['daterange' => 'ไม่มีช่วงเวลาใดถูกสร้าง โปรดตรวจสอบตัวเลือกวันอีกครั้ง'])
+                $errorMsg = 'ไม่มีช่วงเวลาใดถูกสร้าง';
+                if ($skippedCount > 0) {
+                    $errorMsg .= " (ข้อมูลซ้ำทั้งหมด {$skippedCount} รายการ)";
+                }
+                return back()->withErrors(['daterange' => $errorMsg])
                     ->withInput();
             }
         } catch (\Exception $e) {
@@ -208,7 +351,6 @@ class TimeSlotController extends Controller
                 ->withInput();
         }
     }
-
     public function show(TimeSlot $timeSlot)
     {
         // โหลดความสัมพันธ์ที่เกี่ยวข้อง
@@ -442,7 +584,7 @@ class TimeSlotController extends Controller
     public function bulkEdit(Request $request)
     {
         $query = TimeSlot::with(['doctor', 'clinic']);
-        
+
         // กรองตามเงื่อนไขที่ส่งมา
         if ($request->has('ids') && $request->ids) {
             $ids = explode(',', $request->ids);
@@ -450,15 +592,15 @@ class TimeSlotController extends Controller
         } else {
             // ถ้าไม่มี ids ให้แสดงตามฟิลเตอร์
             $query->where('date', '>=', Carbon::today());
-            
+
             if ($request->has('clinic_id') && $request->clinic_id) {
                 $query->where('clinic_id', $request->clinic_id);
             }
-            
+
             if ($request->has('doctor_id') && $request->doctor_id) {
                 $query->where('doctor_id', $request->doctor_id);
             }
-            
+
             if ($request->has('date_range') && $request->date_range) {
                 $dateRange = explode(' - ', $request->date_range);
                 if (count($dateRange) == 2) {
@@ -472,14 +614,14 @@ class TimeSlotController extends Controller
                 }
             }
         }
-        
+
         $timeSlots = $query->orderBy('date')->orderBy('start_time')->get();
         $clinics = Clinic::all();
         $doctors = Doctor::all();
-        
+
         return view('timeslots.bulk-edit', compact('timeSlots', 'clinics', 'doctors'));
     }
-    
+
     public function bulkUpdate(Request $request)
     {
         $validated = $request->validate([
@@ -490,70 +632,69 @@ class TimeSlotController extends Controller
             'is_active' => 'nullable|boolean',
             'respect_booked' => 'nullable|boolean', // เคารพจำนวนที่นัดไปแล้ว
         ]);
-        
+
         DB::beginTransaction();
-        
+
         try {
             $updatedCount = 0;
             $skippedCount = 0;
             $errors = [];
-            
+
             foreach ($validated['timeslot_ids'] as $id) {
                 $timeSlot = TimeSlot::find($id);
-                
+
                 if (!$timeSlot) {
                     $skippedCount++;
                     continue;
                 }
-                
+
                 $updateData = [];
-                
+
                 // อัพเดทจำนวนสูงสุด
                 if ($validated['bulk_action'] === 'update_max_appointments' || $validated['bulk_action'] === 'update_both') {
                     if (isset($validated['max_appointments'])) {
                         $newMaxAppointments = $validated['max_appointments'];
-                        
+
                         // ตรวจสอบว่าจำนวนใหม่ต้องไม่น้อยกว่าที่นัดไปแล้ว
                         if ($validated['respect_booked'] && $newMaxAppointments < $timeSlot->booked_appointments) {
                             $errors[] = "TimeSlot ID {$id}: จำนวนสูงสุดใหม่ ({$newMaxAppointments}) น้อยกว่าจำนวนที่นัดไปแล้ว ({$timeSlot->booked_appointments})";
                             $skippedCount++;
                             continue;
                         }
-                        
+
                         $updateData['max_appointments'] = $newMaxAppointments;
                     }
                 }
-                
+
                 // อัพเดทสถานะ
                 if ($validated['bulk_action'] === 'update_status' || $validated['bulk_action'] === 'update_both') {
                     if (isset($validated['is_active'])) {
                         $updateData['is_active'] = $validated['is_active'];
                     }
                 }
-                
+
                 if (!empty($updateData)) {
                     $timeSlot->update($updateData);
                     $updatedCount++;
                 }
             }
-            
+
             DB::commit();
-            
+
             $message = "อัพเดทสำเร็จ {$updatedCount} รายการ";
             if ($skippedCount > 0) {
                 $message .= ", ข้าม {$skippedCount} รายการ";
             }
-            
+
             if (!empty($errors)) {
                 return back()->with([
                     'success' => $message,
                     'warnings' => $errors
                 ]);
             }
-            
+
             return redirect()->route('timeslots.index')
                 ->with('success', $message);
-                
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withErrors(['error' => 'เกิดข้อผิดพลาด: ' . $e->getMessage()]);

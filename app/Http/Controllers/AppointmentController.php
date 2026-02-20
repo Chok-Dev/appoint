@@ -226,11 +226,49 @@ class AppointmentController extends Controller
             }
         }
 
+        // Search Filter
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('patient_fname', 'like', "%{$search}%")
+                  ->orWhere('patient_lname', 'like', "%{$search}%")
+                  ->orWhere('patient_cid', 'like', "%{$search}%")
+                  ->orWhere('patient_hn', 'like', "%{$search}%");
+            });
+        }
+
+        // Status Filter
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Clinic Filter
+        if ($request->filled('clinic_id')) {
+            $query->where('clinic_id', $request->clinic_id);
+        }
+
+        // Doctor Filter
+        if ($request->filled('doctor_id')) {
+            $query->where('doctor_id', $request->doctor_id);
+        }
+
+        // Date Range Filter
+        if ($request->filled('start_date')) {
+            $query->whereHas('timeSlot', function ($q) use ($request) {
+                $q->where('date', '>=', $request->start_date);
+            });
+        }
+        if ($request->filled('end_date')) {
+            $query->whereHas('timeSlot', function ($q) use ($request) {
+                $q->where('date', '<=', $request->end_date);
+            });
+        }
+
         // Sort by created_at descending
         $query->orderBy('created_at', 'desc');
 
         // Paginate the results
-        $appointments = $query->paginate($perPage);
+        $appointments = $query->paginate($perPage)->withQueryString();
 
         // Count overdue appointments that need status update (for admin only)
         $overdueCount = 0;
@@ -242,7 +280,11 @@ class AppointmentController extends Controller
                 ->count();
         }
 
-        return view('appointments.index', compact('appointments', 'overdueCount'));
+        // Get data for filters
+        $clinics = Clinic::orderBy('name')->get();
+        $doctors = Doctor::orderBy('name')->get();
+
+        return view('appointments.index', compact('appointments', 'overdueCount', 'clinics', 'doctors'));
     }
 
     public function create()

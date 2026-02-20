@@ -77,7 +77,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [TimeSlotController::class, 'index'])->name('index');
         Route::get('/schedule', [TimeSlotController::class, 'schedule'])->name('schedule');
         Route::get('/create', [TimeSlotController::class, 'create'])->name('create');
-        Route::post('/', [TimeSlotController::class, 'store'])->name('store');
+        Route::post('/', [TimeSlotController::class, 'storeOrUpdate'])->name('store');
+
         Route::get('/{timeSlot}', [TimeSlotController::class, 'show'])->name('show');
         Route::get('/{timeSlot}/edit', [TimeSlotController::class, 'edit'])->name('edit');
         Route::put('/{timeSlot}', [TimeSlotController::class, 'update'])->name('update');
