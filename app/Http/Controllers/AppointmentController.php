@@ -451,61 +451,6 @@ class AppointmentController extends Controller
             'patient_phone' => 'nullable|string|max:20',
         ], $messages);
 
-        // ดึงข้อมูล time slot ที่เลือก
-        $timeSlot = TimeSlot::findOrFail($validated['time_slot_id']);
-
-        // ตรวจสอบว่าวันที่เลือกเป็นวันหยุดหรือไม่
-        $selectedDate = $timeSlot->date->format('Y-m-d');
-        $isHoliday = DB::connection('pgsql')
-            ->table('holiday')
-            ->where('holiday_date', $selectedDate)
-            ->exists();
-
-        if ($isHoliday) {
-            // ดึงข้อมูลวันหยุด
-            $holiday = DB::connection('pgsql')
-                ->table('holiday')
-                ->where('holiday_date', $selectedDate)
-                ->first();
-
-            $holidayName = $holiday ? $holiday->day_name : 'วันหยุด';
-
-            return back()->withErrors(['time_slot_id' => "ไม่สามารถนัดหมายในวันหยุด ({$holidayName}) กรุณาเลือกวันอื่น"])
-                ->withInput();
-        }
-
-        // ตรวจสอบว่า time slot ยังว่างหรือไม่
-        if (!$timeSlot->isAvailable()) {
-            return back()->withErrors(['time_slot_id' => 'ช่วงเวลานี้ไม่ว่างแล้ว โปรดเลือกช่วงเวลาอื่น'])
-                ->withInput();
-        }
-
-        // ตรวจสอบว่าผู้ป่วยคนนี้มีการนัดในช่วงเวลาเดียวกันแล้วหรือไม่
-        $existingAppointment = Appointment::where('patient_cid', $validated['patient_cid'])
-            ->where('time_slot_id', $validated['time_slot_id'])
-            ->where('status', '!=', 'cancelled')
-            ->first();
-
-        if ($existingAppointment) {
-            return back()->withErrors(['time_slot_id' => 'ผู้ป่วยนี้มีการนัดหมายในช่วงเวลานี้แล้ว'])
-                ->withInput();
-        }
-
-        // ตรวจสอบว่าผู้ป่วยคนนี้มีการนัดในวันเดียวกันกับคลินิกเดียวกันแล้วหรือไม่
-        $sameDay = Carbon::parse($timeSlot->date)->format('Y-m-d');
-        $sameDayAppointment = Appointment::whereHas('timeSlot', function ($query) use ($sameDay, $timeSlot) {
-            $query->whereDate('date', $sameDay);
-        })
-            ->where('patient_cid', $validated['patient_cid'])
-            ->where('clinic_id', $timeSlot->clinic_id)
-            ->where('status', '!=', 'cancelled')
-            ->first();
-
-        if ($sameDayAppointment) {
-            return back()->withErrors(['time_slot_id' => 'ผู้ป่วยนี้มีการนัดหมายในคลินิกนี้ในวันเดียวกันแล้ว'])
-                ->withInput();
-        }
-
         // ตรวจสอบข้อมูลผู้ป่วย
         $patientData = [
             'cid' => $validated['patient_cid'],
@@ -515,13 +460,69 @@ class AppointmentController extends Controller
             'lname' => $validated['patient_lname'] ?? $validated['manual_lname'] ?? null,
             'birthdate' => $validated['patient_birthdate'] ?? null,
             'age' => $validated['patient_age'] ?? $validated['manual_age'] ?? null,
-            'phone' => $validated['patient_phone'] ?? null, // Add this line
+            'phone' => $validated['patient_phone'] ?? null,
         ];
 
-        // เริ่ม transaction
+        // เริ่ม transaction พร้อม lock เพื่อป้องกัน race condition (การบันทึกซ้ำ)
         DB::beginTransaction();
 
         try {
+            // Lock time slot row เพื่อป้องกัน concurrent request
+            $timeSlot = TimeSlot::lockForUpdate()->findOrFail($validated['time_slot_id']);
+
+            // ตรวจสอบว่าวันที่เลือกเป็นวันหยุดหรือไม่
+            $selectedDate = $timeSlot->date->format('Y-m-d');
+            $isHoliday = DB::connection('pgsql')
+                ->table('holiday')
+                ->where('holiday_date', $selectedDate)
+                ->exists();
+
+            if ($isHoliday) {
+                DB::rollBack();
+                $holiday = DB::connection('pgsql')
+                    ->table('holiday')
+                    ->where('holiday_date', $selectedDate)
+                    ->first();
+                $holidayName = $holiday ? $holiday->day_name : 'วันหยุด';
+                return back()->withErrors(['time_slot_id' => "ไม่สามารถนัดหมายในวันหยุด ({$holidayName}) กรุณาเลือกวันอื่น"])
+                    ->withInput();
+            }
+
+            // ตรวจสอบว่า time slot ยังว่างหรือไม่
+            if (!$timeSlot->isAvailable()) {
+                DB::rollBack();
+                return back()->withErrors(['time_slot_id' => 'ช่วงเวลานี้ไม่ว่างแล้ว โปรดเลือกช่วงเวลาอื่น'])
+                    ->withInput();
+            }
+
+            // ตรวจสอบว่าผู้ป่วยคนนี้มีการนัดในช่วงเวลาเดียวกันแล้วหรือไม่
+            $existingAppointment = Appointment::where('patient_cid', $validated['patient_cid'])
+                ->where('time_slot_id', $validated['time_slot_id'])
+                ->where('status', '!=', 'cancelled')
+                ->first();
+
+            if ($existingAppointment) {
+                DB::rollBack();
+                return back()->withErrors(['time_slot_id' => 'ผู้ป่วยนี้มีการนัดหมายในช่วงเวลานี้แล้ว'])
+                    ->withInput();
+            }
+
+            // ตรวจสอบว่าผู้ป่วยคนนี้มีการนัดในวันเดียวกันกับคลินิกเดียวกันแล้วหรือไม่
+            $sameDay = Carbon::parse($timeSlot->date)->format('Y-m-d');
+            $sameDayAppointment = Appointment::whereHas('timeSlot', function ($query) use ($sameDay) {
+                $query->whereDate('date', $sameDay);
+            })
+                ->where('patient_cid', $validated['patient_cid'])
+                ->where('clinic_id', $timeSlot->clinic_id)
+                ->where('status', '!=', 'cancelled')
+                ->first();
+
+            if ($sameDayAppointment) {
+                DB::rollBack();
+                return back()->withErrors(['time_slot_id' => 'ผู้ป่วยนี้มีการนัดหมายในคลินิกนี้ในวันเดียวกันแล้ว'])
+                    ->withInput();
+            }
+
             // สร้าง appointment
             $appointment = Appointment::create([
                 'user_id' => Auth::id(),
@@ -537,14 +538,17 @@ class AppointmentController extends Controller
                 'patient_lname' => $patientData['lname'],
                 'patient_birthdate' => $patientData['birthdate'],
                 'patient_age' => $patientData['age'],
-                'patient_phone' => $patientData['phone'], // Add this line
+                'patient_phone' => $patientData['phone'],
             ]);
+
             // เพิ่มจำนวนการนัดหมายใน time slot
             $timeSlot->increment('booked_appointments');
+
             TelegramNotificationService::notifyAdminNewAppointment($appointment);
             if ($appointment->user->telegram_chat_id) {
                 TelegramNotificationService::notifyUserAppointmentCreated($appointment);
             }
+
             DB::commit();
 
             return redirect()->route('appointments.index')
