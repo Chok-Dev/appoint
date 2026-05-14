@@ -18,7 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'QrCode' => SimpleSoftwareIO\QrCode\Facades\QrCode::class,
 
         ]);
-        $middleware->validateCsrfTokens(except: [
+        $middleware->preventRequestForgery(except: [
             'https://appoint.chokdev.com/telegram/webhook',
             'http://appoint.chokdev.com/telegram/webhook',
 
