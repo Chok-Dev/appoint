@@ -7,6 +7,11 @@
             <div class="block-header block-header-default">
                 <h3 class="block-title">การนัดหมายทั้งหมด</h3>
                 <div class="block-options">
+                    @if (Auth::user()->isAdmin())
+                        <button type="button" class="btn btn-alt-info me-2" data-bs-toggle="modal" data-bs-target="#modal-retroactive-check">
+                            <i class="fa fa-history"></i> เช็คย้อนหลัง
+                        </button>
+                    @endif
                     @if (Auth::user()->isAdmin() && $overdueCount > 0)
                         <button type="button" class="btn btn-alt-warning me-2" data-bs-toggle="modal"
                             data-bs-target="#modal-bulk-update">
@@ -37,6 +42,8 @@
                                 <option value="confirmed" {{ request('status') == 'confirmed' ? 'selected' : '' }}>
                                     ยืนยันแล้ว</option>
                                 <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>เสร็จสิ้น
+                                </option>
+                                <option value="missed" {{ request('status') == 'missed' ? 'selected' : '' }}>ไม่มาตามนัด
                                 </option>
                                 <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>
                                     ยกเลิกแล้ว</option>
@@ -209,6 +216,8 @@
                                                 <span class="badge bg-danger">ยกเลิกแล้ว</span>
                                             @elseif($appointment->status == 'completed')
                                                 <span class="badge bg-success">เสร็จสิ้น</span>
+                                            @elseif($appointment->status == 'missed')
+                                                <span class="badge bg-danger">ไม่มาตามนัด</span>
                                             @endif
 
                                             <!-- เพิ่มปุ่มเปลี่ยนสถานะสำหรับผู้ดูแลระบบ -->
@@ -359,6 +368,10 @@
                                                                                     {{ $appointment->status == 'completed' ? 'selected' : '' }}>
                                                                                     เสร็จสิ้น
                                                                                 </option>
+                                                                                <option value="missed"
+                                                                                    {{ $appointment->status == 'missed' ? 'selected' : '' }}>
+                                                                                    ไม่มาตามนัด
+                                                                                </option>
                                                                                 <option value="cancelled"
                                                                                     {{ $appointment->status == 'cancelled' ? 'selected' : '' }}>
                                                                                     ยกเลิก
@@ -479,6 +492,41 @@
     @endif
     <!-- END Bulk Update Modal -->
 
+    @if (Auth::user()->isAdmin())
+      <!-- Retroactive Check Modal -->
+      <div class="modal fade" id="modal-retroactive-check" tabindex="-1" role="dialog" aria-labelledby="modal-retroactive-check" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+          <div class="modal-content">
+            <div class="block block-rounded shadow-none mb-0">
+                <div class="block-header block-header-default bg-info">
+                  <h3 class="block-title text-white">ตรวจสอบการมาตามนัดย้อนหลัง (HOSxP)</h3>
+                  <div class="block-options">
+                      <button type="button" class="btn-block-option text-white" data-bs-dismiss="modal" aria-label="Close">
+                          <i class="fa fa-times"></i>
+                      </button>
+                  </div>
+                </div>
+                <div class="block-content fs-sm">
+                  <p>ระบบจะทำการค้นหาการนัดหมายที่มีสถานะ <strong>"เสร็จสิ้น"</strong> ในอดีตถึงปัจจุบัน และตรวจสอบกับฐานข้อมูล HOSxP ว่าผู้ป่วยได้มารับบริการในวันนั้นจริงหรือไม่</p>
+                  <p>หาก <strong>ไม่พบประวัติการรับบริการ</strong> ระบบจะเปลี่ยนสถานะการนัดหมายนั้นเป็น <strong>"ไม่มาตามนัด"</strong> โดยอัตโนมัติ</p>
+                  <p class="text-danger mb-4"><i class="fa fa-exclamation-triangle"></i> หมายเหตุ: การดำเนินการนี้อาจใช้เวลาสักครู่ ขึ้นอยู่กับจำนวนข้อมูลที่มี</p>
+                </div>
+                <div class="block-content block-content-full block-content-sm text-end border-top">
+                  <button type="button" class="btn btn-alt-secondary" data-bs-dismiss="modal">ปิด</button>
+                  <form action="{{ route('appointments.retroactiveCheck') }}" method="POST" class="d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-info">
+                      <i class="fa fa-search me-1"></i> เริ่มตรวจสอบย้อนหลัง
+                    </button>
+                  </form>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- END Retroactive Check Modal -->
+    @endif
+
     <!-- END Page Content -->
 @endsection
 
@@ -580,6 +628,8 @@
                         warningMessage = 'ไม่สามารถเปลี่ยนจาก "ยกเลิก" เป็น "รอดำเนินการ" ได้';
                     } else if (oldStatus === 'completed' && newStatus === 'pending') {
                         warningMessage = 'ไม่สามารถเปลี่ยนจาก "เสร็จสิ้น" เป็น "รอดำเนินการ" ได้';
+                    } else if (oldStatus === 'missed' && newStatus === 'pending') {
+                        warningMessage = 'ไม่สามารถเปลี่ยนจาก "ไม่มาตามนัด" เป็น "รอดำเนินการ" ได้';
                     } else if (newStatus === 'completed' && oldStatus !== 'confirmed' && oldStatus !==
                         'pending') {
                         warningMessage = 'ควรเปลี่ยนเป็น "ยืนยันแล้ว" ก่อนที่จะเปลี่ยนเป็น "เสร็จสิ้น"';

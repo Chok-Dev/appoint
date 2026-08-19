@@ -78,6 +78,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/schedule', [TimeSlotController::class, 'schedule'])->name('schedule');
         Route::get('/create', [TimeSlotController::class, 'create'])->name('create');
         Route::post('/', [TimeSlotController::class, 'storeOrUpdate'])->name('store');
+        Route::post('/bulk', [TimeSlotController::class, 'storeBulk'])->name('store.bulk');
+        Route::delete('/bulk', [TimeSlotController::class, 'destroyBulk'])->name('destroy.bulk');
 
         Route::get('/{timeSlot}', [TimeSlotController::class, 'show'])->name('show');
         Route::get('/{timeSlot}/edit', [TimeSlotController::class, 'edit'])->name('edit');
@@ -105,6 +107,7 @@ Route::middleware(['auth'])->group(function () {
         Route::middleware(['admin'])->group(function () {
             Route::post('/{appointment}/status', [AppointmentController::class, 'updateStatus'])->name('updateStatus');
             Route::post('/bulk-update-overdue', [AppointmentController::class, 'bulkUpdateOverdue'])->name('bulkUpdateOverdue');
+            Route::post('/retroactive-check', [AppointmentController::class, 'retroactiveCheck'])->name('retroactiveCheck');
         });
     });
 

@@ -116,7 +116,9 @@
                                                 @elseif($appointment->status == 'cancelled')
                                                     <span class="badge bg-danger">ยกเลิกแล้ว</span>
                                                 @elseif($appointment->status == 'completed')
-                                                    <span class="badge bg-info">เสร็จสิ้น</span>
+                                                    <span class="badge bg-success">เสร็จสิ้น</span>
+                                                @elseif($appointment->status == 'missed')
+                                                    <span class="badge bg-danger">ไม่มาตามนัด</span>
                                                 @endif
                                             </td>
                                             <td>{{ $appointment->created_at->thaidate('D j M y') }}</td>

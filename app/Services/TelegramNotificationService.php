@@ -115,8 +115,9 @@ class TelegramNotificationService
         $statusLabels = [
             'pending' => '⏳ รอดำเนินการ',
             'confirmed' => '✅ ยืนยันแล้ว',
-            'cancelled' => '❌ ยกเลิกแล้ว',
+            'cancelled' => '❌ ยกเลิก',
             'completed' => '🏁 เสร็จสิ้น',
+            'missed' => '❌ ไม่มาตามนัด',
         ];
 
         $message = "<b>🔄 มีการอัพเดทสถานะการนัดหมาย</b>\n\n" .

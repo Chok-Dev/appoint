@@ -78,7 +78,7 @@
 @endsection
 
 @section('js')
-  <script src="{{ asset('js/plugins/fullcalendar/index.global.min.js') }}"></script>
+  <script src="{{ asset('js/plugins/fullcalendar/index.global.js') }}"></script>
 
 
   <script>

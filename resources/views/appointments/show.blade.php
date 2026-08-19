@@ -96,6 +96,8 @@
                       <span class="badge bg-danger">ยกเลิกแล้ว</span>
                     @elseif($appointment->status == 'completed')
                       <span class="badge bg-success">เสร็จสิ้น</span>
+                    @elseif($appointment->status == 'missed')
+                      <span class="badge bg-danger">ไม่มาตามนัด</span>
                     @endif
                   </td>
                 </tr>
@@ -218,6 +220,8 @@
                   <option value="cancelled" {{ $appointment->status == 'cancelled' ? 'selected' : '' }}>ยกเลิกแล้ว
                   </option>
                   <option value="completed" {{ $appointment->status == 'completed' ? 'selected' : '' }}>เสร็จสิ้น
+                  </option>
+                  <option value="missed" {{ $appointment->status == 'missed' ? 'selected' : '' }}>ไม่มาตามนัด
                   </option>
                 </select>
               </div>

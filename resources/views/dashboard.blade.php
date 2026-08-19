@@ -101,17 +101,21 @@
       @endif
       
       <div class="col-6 col-xl-3">
-        <a class="block block-rounded block-link-shadow text-end" href="{{ route('timeslots.schedule') }}">
+        <div class="block block-rounded text-end">
           <div class="block-content block-content-full d-sm-flex justify-content-between align-items-center">
             <div class="d-none d-sm-block">
-              <i class="fa fa-calendar-alt fa-2x opacity-25"></i>
+              <i class="fa fa-user-times fa-2x opacity-25 text-danger"></i>
             </div>
             <div>
-              <div class="fs-3 fw-semibold">ตารางเวร</div>
-              <div class="fs-sm fw-semibold text-uppercase text-muted">ตารางเวลาแพทย์</div>
+              @if (Auth::user()->isAdmin())
+                <div class="fs-3 fw-semibold text-danger">{{ \App\Models\Appointment::where('status', 'missed')->count() }}</div>
+              @else
+                <div class="fs-3 fw-semibold text-danger">{{ Auth::user()->appointments()->where('status', 'missed')->count() }}</div>
+              @endif
+              <div class="fs-sm fw-semibold text-uppercase text-muted">ไม่มาตามนัด</div>
             </div>
           </div>
-        </a>
+        </div>
       </div>
       
       @if (Auth::user()->isAdmin())

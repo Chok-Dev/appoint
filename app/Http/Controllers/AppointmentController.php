@@ -45,12 +45,34 @@ class AppointmentController extends Controller
 
             foreach ($overdueAppointments as $appointment) {
                 $oldStatus = $appointment->status;
+                $newStatus = 'completed';
+
+                // ตรวจสอบกับ HOSxP
+                try {
+                    $appointmentDate = \Carbon\Carbon::parse($appointment->timeSlot->date)->format('Y-m-d');
+                    $patientCid = $appointment->patient_cid;
+                    
+                    if ($patientCid) {
+                        $hosxpVisit = DB::connection('pgsql')
+                            ->table('ovst as o')
+                            ->join('patient as p', 'o.hn', '=', 'p.hn')
+                            ->whereDate('o.vstdate', $appointmentDate)
+                            ->where('p.cid', $patientCid)
+                            ->exists();
+                            
+                        if (!$hosxpVisit) {
+                            $newStatus = 'missed';
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::error("HOSxP Check Error during bulk update for CID {$appointment->patient_cid}: " . $e->getMessage());
+                }
                 
-                // Update to completed
-                $appointment->update(['status' => 'completed']);
+                // Update to new status
+                $appointment->update(['status' => $newStatus]);
                 
                 // Send notification to user about status change
-                TelegramNotificationService::notifyUserStatusUpdate($appointment, $oldStatus, 'completed');
+                TelegramNotificationService::notifyUserStatusUpdate($appointment, $oldStatus, $newStatus);
                 
                 $updatedCount++;
             }
@@ -796,7 +818,7 @@ class AppointmentController extends Controller
         ];
 
         $validated = $request->validate([
-            'status' => 'required|in:pending,confirmed,cancelled,completed',
+            'status' => 'required|in:pending,confirmed,cancelled,completed,missed',
         ], $messages);
 
         $oldStatus = $appointment->getOriginal('status');
@@ -806,6 +828,7 @@ class AppointmentController extends Controller
         $invalidTransitions = [
             'cancelled' => ['pending'], // ไม่อนุญาตให้เปลี่ยนจาก cancelled เป็น pending
             'completed' => ['pending'], // ไม่อนุญาตให้เปลี่ยนจาก completed เป็น pending
+            'missed' => ['pending'], // ไม่อนุญาตให้เปลี่ยนจาก missed เป็น pending
         ];
 
         // ตรวจสอบว่าการเปลี่ยนสถานะนี้ถูกต้องหรือไม่
@@ -835,6 +858,27 @@ class AppointmentController extends Controller
             if ($oldStatus !== 'pending') {
                 return redirect()->route('appointments.show', $appointment)
                     ->with('error', 'การนัดหมายต้องผ่านการยืนยัน (confirmed) ก่อนที่จะเสร็จสิ้น');
+            }
+        }
+
+        // เช็คการมารับบริการที่ HOSxP ก่อนอัพเดทเป็นเสร็จสิ้น
+        $isMissedAutomatically = false;
+        if ($newStatus === 'completed') {
+            try {
+                $hasVisit = DB::connection('pgsql')
+                    ->table('ovst')
+                    ->join('patient', 'ovst.hn', '=', 'patient.hn')
+                    ->where('ovst.vstdate', \Carbon\Carbon::parse($appointment->timeSlot->date)->format('Y-m-d'))
+                    ->where('patient.cid', $appointment->patient_cid)
+                    ->exists();
+
+                if (!$hasVisit) {
+                    $newStatus = 'missed';
+                    $isMissedAutomatically = true;
+                }
+            } catch (\Exception $e) {
+                Log::error('Error checking HOSxP visit: ' . $e->getMessage());
+                // ข้ามการตรวจสอบหากฐานข้อมูล HOSxP มีปัญหา
             }
         }
 
@@ -873,15 +917,19 @@ class AppointmentController extends Controller
             DB::commit();
 
             // แสดงข้อความสำเร็จที่แตกต่างกันตามสถานะ
-            // แสดงข้อความสำเร็จที่แตกต่างกันตามสถานะ
             $statusMessages = [
                 'pending' => 'สถานะการนัดหมายถูกเปลี่ยนเป็น "รอดำเนินการ" เรียบร้อยแล้ว',
                 'confirmed' => 'การนัดหมายได้รับการยืนยันเรียบร้อยแล้ว',
                 'cancelled' => 'การนัดหมายถูกยกเลิกเรียบร้อยแล้ว',
                 'completed' => 'การนัดหมายเสร็จสิ้นเรียบร้อยแล้ว',
+                'missed' => 'การนัดหมายมีสถานะเป็นไม่มาตามนัดเรียบร้อยแล้ว',
             ];
 
-            $successMessage = $statusMessages[$newStatus] ?? 'อัพเดตสถานะการนัดหมายเรียบร้อยแล้ว';
+            if (isset($isMissedAutomatically) && $isMissedAutomatically) {
+                $successMessage = 'ไม่พบประวัติการมารับบริการใน HOSxP ระบบจึงเปลี่ยนสถานะเป็น "ไม่มาตามนัด"';
+            } else {
+                $successMessage = $statusMessages[$newStatus] ?? 'อัพเดตสถานะการนัดหมายเรียบร้อยแล้ว';
+            }
 
             return redirect()->route('appointments.show', $appointment)
                 ->with('success', $successMessage);
@@ -890,6 +938,74 @@ class AppointmentController extends Controller
             Log::error('Error updating appointment status: ' . $e->getMessage());
             return redirect()->route('appointments.show', $appointment)
                 ->with('error', 'เกิดข้อผิดพลาดในการอัพเดตสถานะ: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Retroactively check HOSxP for completed appointments and mark them as missed if no visit is found.
+     */
+    public function retroactiveCheck(Request $request)
+    {
+        if (!Auth::user()->isAdmin()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // ค้นหาการนัดหมายที่มีสถานะเสร็จสิ้นแล้ว แต่เรายังไม่เคยตรวจสอบกับ HOSxP (หรือต้องการตรวจสอบซ้ำ)
+            // เช็คเฉพาะการนัดหมายในอดีตหรือวันนี้
+            $completedAppointments = Appointment::with(['timeSlot', 'user', 'clinic', 'doctor'])
+                ->where('status', 'completed')
+                ->whereHas('timeSlot', function ($query) {
+                    $query->where('date', '<=', now()->format('Y-m-d'));
+                })
+                ->get();
+
+            $updatedCount = 0;
+
+            foreach ($completedAppointments as $appointment) {
+                $oldStatus = $appointment->status;
+                
+                try {
+                    $appointmentDate = \Carbon\Carbon::parse($appointment->timeSlot->date)->format('Y-m-d');
+                    $patientCid = $appointment->patient_cid;
+                    
+                    if ($patientCid) {
+                        $hosxpVisit = DB::connection('pgsql')
+                            ->table('ovst as o')
+                            ->join('patient as p', 'o.hn', '=', 'p.hn')
+                            ->whereDate('o.vstdate', $appointmentDate)
+                            ->where('p.cid', $patientCid)
+                            ->exists();
+                            
+                        // ถ้าไม่พบใน HOSxP เปลี่ยนสถานะเป็น missed
+                        if (!$hosxpVisit) {
+                            $appointment->update(['status' => 'missed']);
+                            
+                            // ส่งแจ้งเตือนว่าไม่มาตามนัด
+                            TelegramNotificationService::notifyUserStatusUpdate($appointment, $oldStatus, 'missed');
+                            
+                            $updatedCount++;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::error("HOSxP Check Error during retroactive check for CID {$appointment->patient_cid}: " . $e->getMessage());
+                }
+            }
+
+            DB::commit();
+
+            $message = $updatedCount > 0 
+                ? "ตรวจสอบและอัพเดตสถานะเป็น 'ไม่มาตามนัด' สำเร็จจำนวน {$updatedCount} รายการ" 
+                : "ไม่มีรายการที่ต้องอัพเดต (ผู้ป่วยมาตามนัดทุกคน)";
+                
+            return redirect()->route('dashboard')->with('success', $message);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error during retroactive check: ' . $e->getMessage());
+            return redirect()->route('dashboard')->with('error', 'เกิดข้อผิดพลาดในการตรวจสอบ: ' . $e->getMessage());
         }
     }
 }

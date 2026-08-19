@@ -22,45 +22,69 @@ class TimeSlotController extends Controller
 
     public function index(Request $request)
     {
-        $query = TimeSlot::with(['doctor', 'clinic']);
+        $view = $request->get('view', 'list');
+        $query = $this->buildTimeSlotQuery($request);
 
-        // กรองเฉพาะวันที่ตั้งแต่วันนี้เป็นต้นไป (เพิ่มบรรทัดนี้)
+        $clinics = Clinic::all();
+        $doctors = Doctor::all();
+        $clinicColors = $this->getClinicColors($clinics);
+        $showHolidays = $request->has('show_holidays') ? (bool) $request->show_holidays : true;
+
+        if ($view === 'calendar') {
+            $timeSlots = $query->get();
+            $events = array_merge(
+                $this->formatTimeSlotsAsEvents($timeSlots, $clinicColors),
+                $showHolidays ? $this->getHolidays() : []
+            );
+
+            return view('timeslots.index', compact(
+                'timeSlots',
+                'clinics',
+                'doctors',
+                'view',
+                'events',
+                'clinicColors',
+                'showHolidays'
+            ));
+        }
+
+        $timeSlots = $query->paginate(15)->withQueryString();
+
+        return view('timeslots.index', compact('timeSlots', 'clinics', 'doctors', 'view'));
+    }
+
+    private function buildTimeSlotQuery(Request $request)
+    {
+        $query = TimeSlot::with(['doctor', 'clinic']);
         $query->where('date', '>=', Carbon::today());
 
-        // Filter by clinic if specified
-        if ($request->has('clinic_id') && $request->clinic_id) {
+        if ($request->filled('clinic_id')) {
             $query->where('clinic_id', $request->clinic_id);
         }
 
-        // Filter by doctor if specified
-        if ($request->has('doctor_id') && $request->doctor_id) {
+        if ($request->filled('doctor_id')) {
             $query->where('doctor_id', $request->doctor_id);
         }
 
-        // Filter by date range if specified
-        if ($request->has('date_range') && $request->date_range) {
+        if ($request->filled('date_range')) {
             $dateRange = explode(' - ', $request->date_range);
             if (count($dateRange) == 2) {
                 try {
-                    $startDate = \Carbon\Carbon::createFromFormat('d/m/Y', trim($dateRange[0]))->startOfDay();
-                    $endDate = \Carbon\Carbon::createFromFormat('d/m/Y', trim($dateRange[1]))->endOfDay();
+                    $startDate = Carbon::createFromFormat('d/m/Y', trim($dateRange[0]))->startOfDay();
+                    $endDate = Carbon::createFromFormat('d/m/Y', trim($dateRange[1]))->endOfDay();
                     $query->whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')]);
                 } catch (\Exception $e) {
-                    // ถ้าไม่สามารถแปลงรูปแบบวันที่ได้ ให้ข้ามการกรองด้วยวันที่
                     Log::error('Error parsing date range: ' . $e->getMessage());
                 }
             } else {
-                // ถ้าวันที่อยู่ในรูปแบบอื่น ให้ลองใช้การค้นหาด้วยวันที่เดียว
                 try {
-                    $searchDate = \Carbon\Carbon::createFromFormat('d/m/Y', trim($request->date_range))->format('Y-m-d');
+                    $searchDate = Carbon::createFromFormat('d/m/Y', trim($request->date_range))->format('Y-m-d');
                     $query->whereDate('date', $searchDate);
                 } catch (\Exception $e) {
-                    // ถ้าไม่สามารถแปลงรูปแบบวันที่ได้ ให้ข้ามการกรองด้วยวันที่
                     Log::error('Error parsing single date: ' . $e->getMessage());
                 }
             }
-        } else if ($request->has('date') && $request->date) {
-            // รองรับการค้นหาด้วยวันที่เดิมในรูปแบบเดิม (ถ้ามี)
+        } elseif ($request->filled('date')) {
             try {
                 $query->whereDate('date', $request->date);
             } catch (\Exception $e) {
@@ -68,16 +92,100 @@ class TimeSlotController extends Controller
             }
         }
 
-        // เรียงลำดับตามวันที่และเวลา
-        $query->orderBy('date')->orderBy('start_time');
+        return $query->orderBy('date')->orderBy('start_time');
+    }
 
-        // เพิ่ม pagination - แสดง 15 รายการต่อหน้า
-        $timeSlots = $query->paginate(15)->withQueryString();
+    private function getClinicColors($clinics): array
+    {
+        $colors = [
+            '#FFB300', '#71BB4D', '#F5A623', '#D84315', '#673AB7', '#00ACC1',
+            '#EC407A', '#5D4037', '#455A64', '#7986CB', '#C0CA33', '#3788d8',
+        ];
 
-        $clinics = Clinic::all();
-        $doctors = Doctor::all();
+        $clinicColors = [];
+        foreach ($clinics as $index => $clinic) {
+            $clinicColors[$clinic->id] = $colors[$index % count($colors)];
+        }
 
-        return view('timeslots.index', compact('timeSlots', 'clinics', 'doctors'));
+        return $clinicColors;
+    }
+
+    private function getHolidays(): array
+    {
+        try {
+            $holidays = [];
+            $holidaysQuery = DB::connection('pgsql')
+                ->table('holiday')
+                ->whereRaw('EXTRACT(YEAR FROM holiday_date) = ?', [Carbon::today()->year])
+                ->select('holiday_date', 'day_name')
+                ->get();
+
+            foreach ($holidaysQuery as $holiday) {
+                $holidays[] = [
+                    'title' => $holiday->day_name,
+                    'start' => Carbon::parse($holiday->holiday_date)->format('Y-m-d'),
+                    'backgroundColor' => '#ff3333',
+                    'classNames' => ['holiday-event'],
+                    'allDay' => true,
+                ];
+            }
+
+            return $holidays;
+        } catch (\Exception $e) {
+            Log::error('Error getting holidays: ' . $e->getMessage());
+
+            return [];
+        }
+    }
+
+    private function formatTimeSlotsAsEvents($timeSlots, array $clinicColors): array
+    {
+        $events = [];
+
+        foreach ($timeSlots as $timeSlot) {
+            if (!$timeSlot->is_active && !Auth::user()->isAdmin()) {
+                continue;
+            }
+
+            $date = $timeSlot->date->format('Y-m-d');
+            $startTime = $timeSlot->start_time->format('H:i:s');
+            $endTime = $timeSlot->end_time->format('H:i:s');
+            $available = $timeSlot->max_appointments - $timeSlot->booked_appointments;
+            $title = $timeSlot->doctor->name . ' (' . $available . '/' . $timeSlot->max_appointments . ')';
+            $color = $clinicColors[$timeSlot->clinic_id] ?? '#3788d8';
+
+            if (!$timeSlot->is_active) {
+                $color = '#6c757d';
+                $title .= ' [ปิดใช้งาน]';
+            }
+            if ($available == 0 && $timeSlot->is_active) {
+                $title .= ' [เต็ม]';
+            }
+
+            $textColor = ($available == 0 && $timeSlot->is_active) ? '#333333' : '#FFFFFF';
+            $backgroundColor = ($available == 0 && $timeSlot->is_active) ? $color . '80' : $color;
+            $color = ($available == 0 && $timeSlot->is_active) ? '#ff9999' : $color;
+
+            $events[] = [
+                'id' => $timeSlot->id,
+                'title' => $title,
+                'start' => $date . 'T' . $startTime,
+                'end' => $date . 'T' . $endTime,
+                'backgroundColor' => $backgroundColor,
+                'borderColor' => $color,
+                'textColor' => $textColor,
+                'extendedProps' => [
+                    'doctor' => $timeSlot->doctor->name,
+                    'clinic' => $timeSlot->clinic->name,
+                    'maxAppointments' => $timeSlot->max_appointments,
+                    'bookedAppointments' => $timeSlot->booked_appointments,
+                    'isActive' => $timeSlot->is_active,
+                    'timeslot' => "$startTime - $endTime",
+                ],
+            ];
+        }
+
+        return $events;
     }
 
     public function create()
@@ -351,6 +459,228 @@ class TimeSlotController extends Controller
                 ->withInput();
         }
     }
+
+    public function storeBulk(Request $request)
+    {
+        $validated = $request->validate([
+            'doctor_id' => 'required|exists:doctors,id',
+            'clinic_id' => 'required|exists:clinics,id',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'weekdays' => 'required|array|min:1',
+            'weekdays.*' => 'integer|between:0,6',
+            'slots' => 'required|array|min:1',
+            'slots.*.start_time' => 'required',
+            'slots.*.end_time' => 'required',
+            'slots.*.max_appointments' => 'required|integer|min:1',
+            'is_active' => 'nullable',
+        ]);
+
+        $doctor = Doctor::findOrFail($validated['doctor_id']);
+        $clinic = Clinic::findOrFail($validated['clinic_id']);
+
+        if (!$doctor->clinics->contains($clinic->id)) {
+            return back()->withErrors(['doctor_id' => 'แพทย์ท่านนี้ไม่ได้สังกัดคลินิกที่เลือก'])
+                ->withInput()
+                ->with('open_bulk_modal', true);
+        }
+
+        $normalizedSlots = [];
+        foreach ($validated['slots'] as $index => $slot) {
+            $startTime = $this->normalizeTime($slot['start_time'] ?? null);
+            $endTime = $this->normalizeTime($slot['end_time'] ?? null);
+
+            if (!$startTime || !$endTime) {
+                return back()->withErrors(["slots.{$index}.start_time" => 'กรุณาระบุเวลาเริ่มต้นและสิ้นสุด'])
+                    ->withInput()
+                    ->with('open_bulk_modal', true);
+            }
+
+            if ($startTime >= $endTime) {
+                return back()->withErrors(["slots.{$index}.end_time" => 'เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น'])
+                    ->withInput()
+                    ->with('open_bulk_modal', true);
+            }
+
+            $normalizedSlots[] = [
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'max_appointments' => $slot['max_appointments'],
+            ];
+        }
+
+        $startDate = Carbon::parse($validated['start_date'])->startOfDay();
+        $endDate = Carbon::parse($validated['end_date'])->startOfDay();
+        $weekdays = array_map('intval', $validated['weekdays']);
+        $isActive = $request->has('is_active');
+
+        DB::beginTransaction();
+
+        try {
+            $createdCount = 0;
+            $skippedCount = 0;
+            $currentDate = $startDate->copy();
+
+            while ($currentDate->lte($endDate)) {
+                if (!in_array($currentDate->dayOfWeek, $weekdays, true)) {
+                    $currentDate->addDay();
+                    continue;
+                }
+
+                foreach ($normalizedSlots as $slot) {
+                    if ($this->hasOverlappingSlot(
+                        $validated['doctor_id'],
+                        $validated['clinic_id'],
+                        $currentDate->format('Y-m-d'),
+                        $slot['start_time'],
+                        $slot['end_time']
+                    )) {
+                        $skippedCount++;
+                        continue;
+                    }
+
+                    $existingTimeSlot = TimeSlot::where('date', $currentDate->format('Y-m-d'))
+                        ->where('doctor_id', $validated['doctor_id'])
+                        ->where('clinic_id', $validated['clinic_id'])
+                        ->where('start_time', $slot['start_time'])
+                        ->where('end_time', $slot['end_time'])
+                        ->first();
+
+                    if ($existingTimeSlot) {
+                        $skippedCount++;
+                        continue;
+                    }
+
+                    TimeSlot::create([
+                        'doctor_id' => $validated['doctor_id'],
+                        'clinic_id' => $validated['clinic_id'],
+                        'date' => $currentDate->format('Y-m-d'),
+                        'start_time' => $slot['start_time'],
+                        'end_time' => $slot['end_time'],
+                        'max_appointments' => $slot['max_appointments'],
+                        'booked_appointments' => 0,
+                        'is_active' => $isActive,
+                    ]);
+                    $createdCount++;
+                }
+
+                $currentDate->addDay();
+            }
+
+            DB::commit();
+
+            if ($createdCount > 0) {
+                $message = "สร้างช่วงเวลานัดหมายสำเร็จจำนวน {$createdCount} รายการ";
+                if ($skippedCount > 0) {
+                    $message .= " (ข้ามข้อมูลซ้ำ/ทับซ้อน {$skippedCount} รายการ)";
+                }
+
+                return redirect()->route('timeslots.index')
+                    ->with('success', $message);
+            }
+
+            return back()->withErrors(['slots' => 'ไม่มีช่วงเวลาใดถูกสร้าง (ข้อมูลซ้ำหรือทับซ้อนทั้งหมด)'])
+                ->withInput()
+                ->with('open_bulk_modal', true);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return back()->withErrors(['error' => 'เกิดข้อผิดพลาด: ' . $e->getMessage()])
+                ->withInput()
+                ->with('open_bulk_modal', true);
+        }
+    }
+
+    public function destroyBulk(Request $request)
+    {
+        $validated = $request->validate([
+            'doctor_id' => 'required|exists:doctors,id',
+            'clinic_id' => 'required|exists:clinics,id',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'weekdays' => 'required|array|min:1',
+            'weekdays.*' => 'integer|between:0,6',
+        ]);
+
+        $doctor = Doctor::findOrFail($validated['doctor_id']);
+        $clinic = Clinic::findOrFail($validated['clinic_id']);
+
+        if (!$doctor->clinics->contains($clinic->id)) {
+            return back()->withErrors(['doctor_id' => 'แพทย์ท่านนี้ไม่ได้สังกัดคลินิกที่เลือก'])
+                ->withInput()
+                ->with('open_bulk_delete_modal', true);
+        }
+
+        $startDate = Carbon::parse($validated['start_date'])->format('Y-m-d');
+        $endDate = Carbon::parse($validated['end_date'])->format('Y-m-d');
+        $weekdays = array_map('intval', $validated['weekdays']);
+
+        $timeSlots = TimeSlot::where('clinic_id', $validated['clinic_id'])
+            ->where('doctor_id', $validated['doctor_id'])
+            ->whereBetween('date', [$startDate, $endDate])
+            ->get()
+            ->filter(function ($slot) use ($weekdays) {
+                return in_array(Carbon::parse($slot->date)->dayOfWeek, $weekdays, true);
+            });
+
+        if ($timeSlots->isEmpty()) {
+            return back()->withErrors(['delete' => 'ไม่พบช่วงเวลาที่ตรงตามเงื่อนไข'])
+                ->withInput()
+                ->with('open_bulk_delete_modal', true);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $deletedCount = 0;
+
+            foreach ($timeSlots as $timeSlot) {
+                $timeSlot->appointments()->delete();
+                $timeSlot->delete();
+                $deletedCount++;
+            }
+
+            DB::commit();
+
+            return redirect()->route('timeslots.index')
+                ->with('success', "ลบช่วงเวลาสำเร็จ {$deletedCount} รายการ");
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return back()->withErrors(['delete' => 'เกิดข้อผิดพลาด: ' . $e->getMessage()])
+                ->withInput()
+                ->with('open_bulk_delete_modal', true);
+        }
+    }
+
+    private function normalizeTime(?string $time): ?string
+    {
+        if (!$time) {
+            return null;
+        }
+
+        $time = trim($time);
+        if (preg_match('/^\d{2}:\d{2}$/', $time)) {
+            return $time . ':00';
+        }
+
+        if (preg_match('/^\d{2}:\d{2}:\d{2}$/', $time)) {
+            return $time;
+        }
+
+        return null;
+    }
+
+    private function hasOverlappingSlot(int $doctorId, int $clinicId, string $date, string $startTime, string $endTime): bool
+    {
+        return TimeSlot::where('doctor_id', $doctorId)
+            ->where('clinic_id', $clinicId)
+            ->where('date', $date)
+            ->where('start_time', '<', $endTime)
+            ->where('end_time', '>', $startTime)
+            ->exists();
+    }
+
     public function show(TimeSlot $timeSlot)
     {
         // โหลดความสัมพันธ์ที่เกี่ยวข้อง
@@ -423,159 +753,24 @@ class TimeSlotController extends Controller
             ->where('date', '>=', Carbon::today()->subWeek())
             ->where('date', '<=', Carbon::today()->addMonths(12));
 
-        // Filter by doctor if specified
-        if ($request->has('doctor_id') && $request->doctor_id) {
+        if ($request->filled('doctor_id')) {
             $query->where('doctor_id', $request->doctor_id);
         }
 
-        // Filter by clinic if specified
-        if ($request->has('clinic_id') && $request->clinic_id) {
+        if ($request->filled('clinic_id')) {
             $query->where('clinic_id', $request->clinic_id);
         }
 
         $timeSlots = $query->get();
-
-        // Generate color mapping for clinics
         $clinics = Clinic::all();
         $doctors = Doctor::all();
+        $clinicColors = $this->getClinicColors($clinics);
+        $showHolidays = $request->has('show_holidays') ? (bool) $request->show_holidays : true;
 
-        // Define a set of colors for clinics
-        $colors = [
-            '#FFB300', // Primary blue
-            '#71BB4D', // Green
-            '#F5A623', // Orange
-            '#D84315', // Deep orange
-            '#673AB7', // Deep purple
-            '#00ACC1', // Cyan
-            '#EC407A', // Pink
-            '#5D4037', // Brown
-            '#455A64', // Blue grey
-            '#7986CB', // Indigo
-            '#C0CA33', // Lime
-            '#3788d8', // Amber
-        ];
-
-        // Create color mapping for clinics
-        $clinicColors = [];
-        foreach ($clinics as $index => $clinic) {
-            $clinicColors[$clinic->id] = $colors[$index % count($colors)];
-        }
-
-        // Get holidays from PostgreSQL database
-        try {
-            $holidays = [];
-            $holidaysQuery = DB::connection('pgsql')
-                ->table('holiday')
-                ->whereRaw("EXTRACT(YEAR FROM holiday_date) = ?", [Carbon::today()->year])
-                ->select('holiday_date', 'day_name')
-                ->get();
-
-            foreach ($holidaysQuery as $holiday) {
-                $holidayDate = Carbon::parse($holiday->holiday_date)->format('Y-m-d');
-                $holidays[] = [
-                    'title' => $holiday->day_name,
-                    'start' => $holidayDate,
-                    /* 'display' => 'background', */
-                    'backgroundColor' => '#ff3333', // Light red background
-                    'classNames' => ['holiday-event'],
-                    'allDay' => true
-                ];
-            }
-        } catch (\Exception $e) {
-            // If cannot connect to PostgreSQL or table doesn't exist, use hardcoded holidays
-            Log::error('Error getting holidays: ' . $e->getMessage());
-
-            // Hardcoded holidays for Thailand 2025 (for demonstration)
-            /*  $thaiHolidays = [
-                ['date' => '2025-01-01', 'name' => 'วันขึ้นปีใหม่'],
-                ['date' => '2025-02-10', 'name' => 'วันมาฆบูชา'],
-                ['date' => '2025-04-06', 'name' => 'วันจักรี'],
-                ['date' => '2025-04-13', 'name' => 'วันสงกรานต์'],
-                ['date' => '2025-04-14', 'name' => 'วันสงกรานต์'],
-                ['date' => '2025-04-15', 'name' => 'วันสงกรานต์'],
-                ['date' => '2025-05-01', 'name' => 'วันแรงงานแห่งชาติ'],
-                ['date' => '2025-05-04', 'name' => 'วันฉัตรมงคล'],
-                ['date' => '2025-05-10', 'name' => 'วันวิสาขบูชา'],
-                ['date' => '2025-06-03', 'name' => 'วันเฉลิมพระชนมพรรษาสมเด็จพระราชินี'],
-                ['date' => '2025-07-28', 'name' => 'วันเฉลิมพระชนมพรรษา ร.10'],
-                ['date' => '2025-08-12', 'name' => 'วันแม่แห่งชาติ'],
-                ['date' => '2025-10-13', 'name' => 'วันคล้ายวันสวรรคต ร.9'],
-                ['date' => '2025-10-23', 'name' => 'วันปิยมหาราช'],
-                ['date' => '2025-12-05', 'name' => 'วันคล้ายวันเฉลิมพระชนมพรรษา ร.9'],
-                ['date' => '2025-12-10', 'name' => 'วันรัฐธรรมนูญ'],
-                ['date' => '2025-12-31', 'name' => 'วันสิ้นปี']
-            ];
-            
-            $holidays = [];
-            foreach ($thaiHolidays as $holiday) {
-                $holidays[] = [
-                    'title' => $holiday['name'],
-                    'start' => $holiday['date'],
-                    'display' => 'background',
-                    'backgroundColor' => '#ffcccc', // Light red background
-                    'classNames' => ['holiday-event'],
-                    'allDay' => true
-                ];
-            } */
-        }
-
-        // Format events for the calendar
-        $events = [];
-        foreach ($timeSlots as $timeSlot) {
-            // Skip inactive time slots if user is not an admin
-            if (!$timeSlot->is_active && !Auth::user()->isAdmin()) {
-                continue;
-            }
-
-            // Format the start and end times properly
-            $date = $timeSlot->date->format('Y-m-d');
-            $startTime = $timeSlot->start_time->format('H:i:s');
-            $endTime = $timeSlot->end_time->format('H:i:s');
-
-            // Format title - show how many slots available
-            $available = $timeSlot->max_appointments - $timeSlot->booked_appointments;
-            $title = $timeSlot->doctor->name . ' (' . $available . '/' . $timeSlot->max_appointments . ')';
-
-            // Determine color based on clinic and availability
-            $color = $clinicColors[$timeSlot->clinic_id] ?? '#3788d8';
-
-            // For inactive slots, make them gray (admin only can see these)
-            if (!$timeSlot->is_active) {
-                $color = '#6c757d'; // Bootstrap gray
-                $title .= ' [ปิดใช้งาน]';
-            }
-            if ($available == 0 && $timeSlot->is_active) {
-                $title .= ' [เต็ม]';
-            }
-            // If fully booked, make the event more transparent
-            $textColor = ($available == 0 && $timeSlot->is_active) ? '#333333' : '#FFFFFF';
-            $backgroundColor = ($available == 0 && $timeSlot->is_active) ? $color . '80' : $color; // 80 = 50% opacity in hex
-            $color = ($available == 0 && $timeSlot->is_active) ? '#ff9999' : $color; // 80 = 50% opacity in hex
-
-            $events[] = [
-                'id' => $timeSlot->id,
-                'title' => $title,
-                'start' => $date . 'T' . $startTime,
-                'end' => $date . 'T' . $endTime,
-                'backgroundColor' => $backgroundColor,
-                'borderColor' => $color,
-                'textColor' => $textColor,
-                'extendedProps' => [
-                    'doctor' => $timeSlot->doctor->name,
-                    'clinic' => $timeSlot->clinic->name,
-                    'maxAppointments' => $timeSlot->max_appointments,
-                    'bookedAppointments' => $timeSlot->booked_appointments,
-                    'isActive' => $timeSlot->is_active,
-                    'timeslot' => "$startTime - $endTime",
-                ]
-            ];
-        }
-
-        // Combine timeslot events with holidays
-        $events = array_merge($events, $holidays);
-
-        // Create a flag to check if holidays are shown
-        $showHolidays = $request->has('show_holidays') ? (bool)$request->show_holidays : true;
+        $events = array_merge(
+            $this->formatTimeSlotsAsEvents($timeSlots, $clinicColors),
+            $showHolidays ? $this->getHolidays() : []
+        );
 
         return view('timeslots.schedule', compact('events', 'clinics', 'doctors', 'clinicColors', 'showHolidays'));
     }
